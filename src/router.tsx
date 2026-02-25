@@ -7,6 +7,7 @@ import { GardenDetailPage } from '@/pages/GardenDetailPage'
 import { BedDetailPage } from '@/pages/BedDetailPage'
 import { PlantsPage } from '@/pages/PlantsPage'
 import { PlantDetailPage } from '@/pages/PlantDetailPage'
+import { SchedulePage } from '@/pages/SchedulePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -48,6 +49,10 @@ export const router = createBrowserRouter([
       {
         path: 'plants/:id',
         element: <PlantDetailPage />,
+      },
+      {
+        path: 'schedule',
+        element: <SchedulePage />,
       },
       {
         path: '*',
