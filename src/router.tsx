@@ -5,6 +5,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { GardensPage } from '@/pages/GardensPage'
 import { GardenDetailPage } from '@/pages/GardenDetailPage'
 import { BedDetailPage } from '@/pages/BedDetailPage'
+import { PlantsPage } from '@/pages/PlantsPage'
+import { PlantDetailPage } from '@/pages/PlantDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -38,6 +40,14 @@ export const router = createBrowserRouter([
       {
         path: 'beds/:id',
         element: <BedDetailPage />,
+      },
+      {
+        path: 'plants',
+        element: <PlantsPage />,
+      },
+      {
+        path: 'plants/:id',
+        element: <PlantDetailPage />,
       },
       {
         path: '*',
