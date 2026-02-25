@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { LayoutGrid, Leaf, Sprout, CalendarDays, Plus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/store/authStore'
+import { useWeatherCurrent } from '@/api/weather'
+import { AlertBanner } from '@/components/AlertBanner'
 import type { ElementType } from 'react'
 
 interface StatCardProps {
@@ -34,6 +37,10 @@ function StatCard({ title, value, icon: Icon, description }: StatCardProps) {
 export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [dismissedFrost, setDismissedFrost] = useState(false)
+  const [dismissedHeat, setDismissedHeat] = useState(false)
+
+  const { data: weather } = useWeatherCurrent()
 
   const firstName = user?.name.split(' ')[0] ?? 'there'
 
@@ -46,6 +53,18 @@ export function DashboardPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's what's growing.</p>
       </div>
+
+      {/* Weather alerts */}
+      {(weather?.frost_warning && !dismissedFrost) || (weather?.high_temp_f != null && weather.high_temp_f >= 95 && !dismissedHeat) ? (
+        <div className="space-y-2">
+          {weather?.frost_warning && !dismissedFrost && (
+            <AlertBanner type="frost" temp={weather.low_temp_f} onDismiss={() => setDismissedFrost(true)} />
+          )}
+          {weather?.high_temp_f != null && weather.high_temp_f >= 95 && !dismissedHeat && (
+            <AlertBanner type="heat" temp={weather.high_temp_f} onDismiss={() => setDismissedHeat(true)} />
+          )}
+        </div>
+      ) : null}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
