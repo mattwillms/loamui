@@ -3,7 +3,68 @@ import { ArrowLeft, Sprout } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { usePlant } from '@/api/plants'
+import { usePlant, useCompanionRecommendations } from '@/api/plants'
+import type { CompanionEntry } from '@/types/plant'
+
+interface CompanionRowProps {
+  entries: CompanionEntry[]
+  label: string
+  accent: 'green' | 'red'
+}
+
+function CompanionRow({ entries, label, accent }: CompanionRowProps) {
+  const navigate = useNavigate()
+  const resolved = entries.filter((e) => e.resolved && e.plant)
+
+  if (resolved.length === 0) return null
+
+  const headerClass =
+    accent === 'green'
+      ? 'text-xs font-semibold uppercase tracking-wide text-green-700'
+      : 'text-xs font-semibold uppercase tracking-wide text-red-700'
+
+  return (
+    <div className="space-y-3">
+      <p className={headerClass}>{label}</p>
+      <div className="flex flex-wrap gap-3">
+        {resolved.map((entry) => {
+          const p = entry.plant!
+          return (
+            <button
+              key={p.id}
+              onClick={() => navigate(`/plants/${p.id}`)}
+              className="flex w-[130px] flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-shadow hover:shadow-md"
+            >
+              {p.image_url ? (
+                <img
+                  src={`/api/v1/plants/${p.id}/image`}
+                  alt={p.common_name}
+                  className="h-16 w-16 rounded object-cover"
+                  onError={(e) => {
+                    const el = e.currentTarget
+                    el.style.display = 'none'
+                    el.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <Sprout
+                className={`h-16 w-16 text-primary/20 ${p.image_url ? 'hidden' : ''}`}
+              />
+              <span className="line-clamp-2 text-xs font-medium leading-tight text-foreground">
+                {p.common_name}
+              </span>
+              {p.plant_type && (
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                  {p.plant_type}
+                </Badge>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -20,6 +81,7 @@ export function PlantDetailPage() {
   const plantId = id ? parseInt(id, 10) : NaN
 
   const { data: plant, isLoading, isError } = usePlant(plantId)
+  const { data: companions } = useCompanionRecommendations(plantId)
 
   if (isNaN(plantId)) {
     return (
@@ -130,28 +192,25 @@ export function PlantDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Companion / antagonist */}
-      {((plant.companion_plants && plant.companion_plants.length > 0) ||
-        (plant.antagonist_plants && plant.antagonist_plants.length > 0)) && (
-        <Card>
-          <CardContent className="p-5">
-            <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {plant.companion_plants && plant.companion_plants.length > 0 && (
-                <DetailRow
-                  label="Good companions"
-                  value={plant.companion_plants.join(', ')}
-                />
-              )}
-              {plant.antagonist_plants && plant.antagonist_plants.length > 0 && (
-                <DetailRow
-                  label="Avoid planting with"
-                  value={plant.antagonist_plants.join(', ')}
-                />
-              )}
-            </dl>
-          </CardContent>
-        </Card>
-      )}
+      {/* Companion / antagonist — only renders when resolved entries exist */}
+      {companions &&
+        (companions.companions.some((c) => c.resolved) ||
+          companions.antagonists.some((a) => a.resolved)) && (
+          <Card>
+            <CardContent className="space-y-5 p-5">
+              <CompanionRow
+                entries={companions.companions}
+                label="Good companions"
+                accent="green"
+              />
+              <CompanionRow
+                entries={companions.antagonists}
+                label="Avoid planting with"
+                accent="red"
+              />
+            </CardContent>
+          </Card>
+        )}
 
       {/* Pests / diseases */}
       {((plant.common_pests && plant.common_pests.length > 0) ||
