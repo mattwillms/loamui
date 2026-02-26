@@ -7,6 +7,8 @@ export interface Garden {
   sun_exposure: string | null
   soil_type: string | null
   irrigation_type: string | null
+  latitude: number | null
+  longitude: number | null
   created_at: string
   updated_at: string
 }
@@ -18,6 +20,8 @@ export interface GardenCreate {
   sun_exposure?: string
   soil_type?: string
   irrigation_type?: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface GardenUpdate {
@@ -27,4 +31,6 @@ export interface GardenUpdate {
   sun_exposure?: string
   soil_type?: string
   irrigation_type?: string
+  latitude?: number
+  longitude?: number
 }

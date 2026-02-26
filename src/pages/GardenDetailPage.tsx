@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { Plus, ChevronRight, Trash2 } from 'lucide-react'
+import { Pencil, Plus, ChevronRight, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +12,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useGarden, useDeleteGarden } from '@/api/gardens'
+import { useGarden, useDeleteGarden, useUpdateGarden } from '@/api/gardens'
 import { useBeds, useCreateBed } from '@/api/beds'
+import { useGardenSoil } from '@/api/soil'
 
 export function GardenDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -24,11 +25,29 @@ export function GardenDetailPage() {
   const { data: beds, isLoading: bedsLoading } = useBeds(gardenId)
   const createBed = useCreateBed(gardenId)
   const deleteGarden = useDeleteGarden(gardenId)
+  const updateGarden = useUpdateGarden(gardenId)
+
+  const hasLocation = !!(garden?.latitude || garden?.longitude)
+  const { data: soil, isLoading: soilLoading, isError: soilError } = useGardenSoil(gardenId, hasLocation)
 
   const [bedDialogOpen, setBedDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [bedName, setBedName] = useState('')
   const [bedNotes, setBedNotes] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editLat, setEditLat] = useState('')
+  const [editLon, setEditLon] = useState('')
+
+  function openEditDialog() {
+    if (!garden) return
+    setEditName(garden.name)
+    setEditDescription(garden.description ?? '')
+    setEditLat(garden.latitude !== null ? String(garden.latitude) : '')
+    setEditLon(garden.longitude !== null ? String(garden.longitude) : '')
+    setEditDialogOpen(true)
+  }
 
   async function handleCreateBed(e: React.FormEvent) {
     e.preventDefault()
@@ -44,6 +63,17 @@ export function GardenDetailPage() {
     navigate('/gardens')
   }
 
+  async function handleUpdateGarden(e: React.FormEvent) {
+    e.preventDefault()
+    await updateGarden.mutateAsync({
+      name: editName.trim() || undefined,
+      description: editDescription.trim() || undefined,
+      latitude: editLat !== '' ? parseFloat(editLat) : undefined,
+      longitude: editLon !== '' ? parseFloat(editLon) : undefined,
+    })
+    setEditDialogOpen(false)
+  }
+
   if (gardenLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>
   }
@@ -51,6 +81,8 @@ export function GardenDetailPage() {
   if (!garden) {
     return <p className="text-sm text-muted-foreground">Garden not found.</p>
   }
+
+  const val = (v: string | number | null) => (v !== null && v !== undefined ? v : '—')
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
@@ -84,12 +116,20 @@ export function GardenDetailPage() {
                 {garden.square_footage} sq ft
               </span>
             )}
+            {garden.latitude !== null && garden.longitude !== null && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {garden.latitude.toFixed(4)}, {garden.longitude.toFixed(4)}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setBedDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add bed
+          </Button>
+          <Button variant="outline" size="icon" onClick={openEditDialog}>
+            <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -156,6 +196,118 @@ export function GardenDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Soil */}
+      <div>
+        <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Soil
+        </h2>
+
+        {!hasLocation && (
+          <p className="text-sm text-muted-foreground">
+            Add a location to this garden to see soil data.
+          </p>
+        )}
+
+        {hasLocation && soilLoading && (
+          <p className="text-sm text-muted-foreground">Loading soil data…</p>
+        )}
+
+        {hasLocation && soilError && (
+          <p className="text-sm text-muted-foreground">No soil data available for this location.</p>
+        )}
+
+        {hasLocation && !soilLoading && !soilError && soil && (
+          <Card>
+            <CardContent className="pt-6">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Soil Series</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">{val(soil.soil_series_name)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Texture</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">{val(soil.texture_class)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Drainage</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">{val(soil.drainage_class)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">pH</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">{val(soil.ph_water)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Organic Matter</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">
+                    {soil.organic_matter_pct !== null ? `${soil.organic_matter_pct}%` : '—'}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Edit garden dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit garden</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateGarden} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Input
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-lat">Latitude (optional)</Label>
+                <Input
+                  id="edit-lat"
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 32.4735"
+                  value={editLat}
+                  onChange={(e) => setEditLat(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lon">Longitude (optional)</Label>
+                <Input
+                  id="edit-lon"
+                  type="number"
+                  step="any"
+                  placeholder="e.g. -90.1322"
+                  value={editLon}
+                  onChange={(e) => setEditLon(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateGarden.isPending}>
+                {updateGarden.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Create bed dialog */}
       <Dialog open={bedDialogOpen} onOpenChange={setBedDialogOpen}>
