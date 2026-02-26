@@ -15,6 +15,13 @@ export interface User {
   last_login: string | null
 }
 
+export interface UserStats {
+  gardens: number
+  beds: number
+  active_plantings: number
+  tasks_due_today: number
+}
+
 // Matches backend OAuth2PasswordRequestForm — uses `username` field for email
 export interface LoginRequest {
   username: string

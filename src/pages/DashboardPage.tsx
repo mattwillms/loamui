@@ -8,6 +8,7 @@ import { useAuth } from '@/store/authStore'
 import { useWeatherCurrent } from '@/api/weather'
 import { AlertBanner } from '@/components/AlertBanner'
 import { useSeasonalTasks } from '@/api/recommendations'
+import { useStats } from '@/api/users'
 import type { ElementType } from 'react'
 
 interface StatCardProps {
@@ -55,6 +56,7 @@ export function DashboardPage() {
 
   const { data: weather } = useWeatherCurrent()
   const { data: seasonal } = useSeasonalTasks()
+  const { data: stats } = useStats()
 
   const firstName = user?.name.split(' ')[0] ?? 'there'
 
@@ -84,25 +86,25 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Gardens"
-          value={0}
+          value={stats?.gardens ?? 0}
           icon={LayoutGrid}
           description="No gardens yet"
         />
         <StatCard
           title="Total Beds"
-          value={0}
+          value={stats?.beds ?? 0}
           icon={Leaf}
           description="Across all gardens"
         />
         <StatCard
           title="Active Plantings"
-          value={0}
+          value={stats?.active_plantings ?? 0}
           icon={Sprout}
           description="Currently growing"
         />
         <StatCard
           title="Tasks Due Today"
-          value={0}
+          value={stats?.tasks_due_today ?? 0}
           icon={CalendarDays}
           description="All clear for now"
         />
