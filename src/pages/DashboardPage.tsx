@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router'
 import { LayoutGrid, Leaf, Sprout, CalendarDays, Plus } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/store/authStore'
 import { useWeatherCurrent } from '@/api/weather'
 import { AlertBanner } from '@/components/AlertBanner'
+import { useSeasonalTasks } from '@/api/recommendations'
 import type { ElementType } from 'react'
 
 interface StatCardProps {
@@ -34,6 +36,17 @@ function StatCard({ title, value, icon: Icon, description }: StatCardProps) {
   )
 }
 
+const URGENCY_COLORS: Record<string, string> = {
+  high: 'bg-red-500',
+  medium: 'bg-amber-400',
+  low: 'bg-green-500',
+}
+
+const MONTH_NAMES = [
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
 export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -41,6 +54,7 @@ export function DashboardPage() {
   const [dismissedHeat, setDismissedHeat] = useState(false)
 
   const { data: weather } = useWeatherCurrent()
+  const { data: seasonal } = useSeasonalTasks()
 
   const firstName = user?.name.split(' ')[0] ?? 'there'
 
@@ -93,6 +107,42 @@ export function DashboardPage() {
           description="All clear for now"
         />
       </div>
+
+      {/* Seasonal tasks */}
+      {seasonal && !seasonal.zone_missing && seasonal.tasks.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
+            This Month in Your Garden
+            <span className="ml-2 font-normal text-muted-foreground">
+              — {MONTH_NAMES[seasonal.month]} · Zone {seasonal.zone}
+            </span>
+          </h2>
+          <div className="space-y-2">
+            {seasonal.tasks.slice(0, 6).map((task, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-lg border bg-card px-4 py-3"
+              >
+                <span
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${URGENCY_COLORS[task.urgency] ?? 'bg-muted'}`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-snug text-foreground">{task.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{task.description}</p>
+                </div>
+                <Badge variant="outline" className="ml-auto shrink-0 text-xs capitalize">
+                  {task.task_type}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {seasonal?.zone_missing && (
+        <p className="text-sm text-muted-foreground">
+          Set your hardiness zone in your profile to see seasonal gardening tasks.
+        </p>
+      )}
 
       {/* Empty state */}
       <Card className="border-dashed">
