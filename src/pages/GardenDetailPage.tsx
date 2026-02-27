@@ -13,8 +13,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useGarden, useDeleteGarden, useUpdateGarden } from '@/api/gardens'
-import { useBeds, useCreateBed } from '@/api/beds'
+import { useBeds, useCreateBed, useUpdateBed } from '@/api/beds'
 import { useGardenSoil } from '@/api/soil'
+import type { Bed } from '@/types/bed'
 
 export function GardenDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,15 +31,29 @@ export function GardenDetailPage() {
   const hasLocation = !!(garden?.latitude || garden?.longitude)
   const { data: soil, isLoading: soilLoading, isError: soilError } = useGardenSoil(gardenId, hasLocation)
 
+  // Garden dialogs
   const [bedDialogOpen, setBedDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [bedName, setBedName] = useState('')
-  const [bedNotes, setBedNotes] = useState('')
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editLat, setEditLat] = useState('')
   const [editLon, setEditLon] = useState('')
+
+  // Create bed form
+  const [bedName, setBedName] = useState('')
+  const [bedNotes, setBedNotes] = useState('')
+  const [bedWidth, setBedWidth] = useState('')
+  const [bedLength, setBedLength] = useState('')
+
+  // Edit bed dialog
+  const [editBedDialogOpen, setEditBedDialogOpen] = useState(false)
+  const [editingBed, setEditingBed] = useState<Bed | null>(null)
+  const [editBedName, setEditBedName] = useState('')
+  const [editBedNotes, setEditBedNotes] = useState('')
+  const [editBedWidth, setEditBedWidth] = useState('')
+  const [editBedLength, setEditBedLength] = useState('')
+  const updateBed = useUpdateBed(editingBed?.id ?? 0)
 
   function openEditDialog() {
     if (!garden) return
@@ -49,13 +64,41 @@ export function GardenDetailPage() {
     setEditDialogOpen(true)
   }
 
+  function openEditBedDialog(bed: Bed) {
+    setEditingBed(bed)
+    setEditBedName(bed.name)
+    setEditBedNotes(bed.notes ?? '')
+    setEditBedWidth(bed.width_ft !== null ? String(bed.width_ft) : '')
+    setEditBedLength(bed.length_ft !== null ? String(bed.length_ft) : '')
+    setEditBedDialogOpen(true)
+  }
+
   async function handleCreateBed(e: React.FormEvent) {
     e.preventDefault()
     if (!bedName.trim()) return
-    await createBed.mutateAsync({ name: bedName.trim(), notes: bedNotes.trim() || undefined })
+    await createBed.mutateAsync({
+      name: bedName.trim(),
+      notes: bedNotes.trim() || undefined,
+      width_ft: bedWidth !== '' ? parseFloat(bedWidth) : undefined,
+      length_ft: bedLength !== '' ? parseFloat(bedLength) : undefined,
+    })
     setBedName('')
     setBedNotes('')
+    setBedWidth('')
+    setBedLength('')
     setBedDialogOpen(false)
+  }
+
+  async function handleUpdateBed(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editBedName.trim()) return
+    await updateBed.mutateAsync({
+      name: editBedName.trim(),
+      notes: editBedNotes.trim() || undefined,
+      width_ft: editBedWidth !== '' ? parseFloat(editBedWidth) : undefined,
+      length_ft: editBedLength !== '' ? parseFloat(editBedLength) : undefined,
+    })
+    setEditBedDialogOpen(false)
   }
 
   async function handleDeleteGarden() {
@@ -172,7 +215,20 @@ export function GardenDetailPage() {
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-base font-medium">{bed.name}</CardTitle>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditBedDialog(bed)
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {bed.notes && (
@@ -326,6 +382,32 @@ export function GardenDetailPage() {
                 required
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bed-width">Width (ft, optional)</Label>
+                <Input
+                  id="bed-width"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  placeholder="e.g. 4"
+                  value={bedWidth}
+                  onChange={(e) => setBedWidth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bed-length">Length (ft, optional)</Label>
+                <Input
+                  id="bed-length"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  placeholder="e.g. 8"
+                  value={bedLength}
+                  onChange={(e) => setBedLength(e.target.value)}
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="bed-notes">Notes (optional)</Label>
               <Input
@@ -341,6 +423,69 @@ export function GardenDetailPage() {
               </Button>
               <Button type="submit" disabled={createBed.isPending}>
                 {createBed.isPending ? 'Adding…' : 'Add bed'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit bed dialog */}
+      <Dialog open={editBedDialogOpen} onOpenChange={setEditBedDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit bed</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateBed} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-bed-name">Name</Label>
+              <Input
+                id="edit-bed-name"
+                value={editBedName}
+                onChange={(e) => setEditBedName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-bed-width">Width (ft, optional)</Label>
+                <Input
+                  id="edit-bed-width"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  placeholder="e.g. 4"
+                  value={editBedWidth}
+                  onChange={(e) => setEditBedWidth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-bed-length">Length (ft, optional)</Label>
+                <Input
+                  id="edit-bed-length"
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  placeholder="e.g. 8"
+                  value={editBedLength}
+                  onChange={(e) => setEditBedLength(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-bed-notes">Notes (optional)</Label>
+              <Input
+                id="edit-bed-notes"
+                placeholder="Any notes about this bed"
+                value={editBedNotes}
+                onChange={(e) => setEditBedNotes(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditBedDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateBed.isPending}>
+                {updateBed.isPending ? 'Saving…' : 'Save'}
               </Button>
             </DialogFooter>
           </form>

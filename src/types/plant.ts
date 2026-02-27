@@ -7,6 +7,7 @@ export interface PlantSummary {
   sun_requirement: string | null
   water_needs: string | null
   hardiness_zones: string[] | null
+  spacing_inches: number | null
   image_url: string | null
   source: string
 }
