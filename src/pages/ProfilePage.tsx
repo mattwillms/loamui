@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMe, useUpdateMe } from '@/api/users'
+import { useAuth } from '@/store/authStore'
 
 function ProfileSkeleton() {
   return (
@@ -29,6 +30,7 @@ function ProfileSkeleton() {
 export function ProfilePage() {
   const { data: user, isLoading } = useMe()
   const updateMe = useUpdateMe()
+  const { refreshUser } = useAuth()
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -57,6 +59,7 @@ export function ProfilePage() {
         timezone: timezone.trim() || undefined,
         zip_code: zipCode.trim() || undefined,
       })
+      await refreshUser()
       toast.success('Profile updated.')
     } catch {
       setError('Failed to update profile. Please try again.')
