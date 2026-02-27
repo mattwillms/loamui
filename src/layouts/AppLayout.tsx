@@ -72,9 +72,7 @@ export function AppLayout() {
       >
         {/* Wordmark */}
         <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-5">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary">
-            <Sprout className="h-3.5 w-3.5 text-primary-foreground" />
-          </div>
+          <img src="/icon.svg" alt="Loam" className="h-6 w-6 rounded-sm" />
           <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
             loam
           </span>
