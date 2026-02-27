@@ -1,8 +1,14 @@
 import sharp from 'sharp'
-import { readFileSync } from 'fs'
+import toIco from 'to-ico'
+import { readFileSync, writeFileSync } from 'fs'
 
 const svg = readFileSync('./public/icon.svg')
 await sharp(Buffer.from(svg)).resize(192, 192).png().toFile('./public/pwa-192x192.png')
 await sharp(Buffer.from(svg)).resize(512, 512).png().toFile('./public/pwa-512x512.png')
 await sharp(Buffer.from(svg)).resize(180, 180).png().toFile('./public/apple-touch-icon.png')
+
+const png192 = readFileSync('./public/pwa-192x192.png')
+const ico = await toIco([png192])
+writeFileSync('./public/favicon.ico', ico)
+
 console.log('Icons generated.')
