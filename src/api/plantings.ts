@@ -26,6 +26,19 @@ export function useCreatePlanting() {
   })
 }
 
+export function useUpdatePlanting() {
+  const queryClient = useQueryClient()
+  return useMutation<Planting, Error, { plantingId: number; bedId: number; data: Partial<Planting> }>({
+    mutationFn: async ({ plantingId, data }) => {
+      const response = await apiClient.patch(`/plantings/${plantingId}`, data)
+      return response.data
+    },
+    onSuccess: (_, { bedId }) => {
+      queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
+    },
+  })
+}
+
 export function useDeletePlanting() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, { plantingId: number; bedId: number }>({

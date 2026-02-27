@@ -31,5 +31,6 @@ export interface PlantingCreate {
   plant_id: number
   grid_x?: number
   grid_y?: number
+  is_locked?: boolean
   quantity?: number
 }
