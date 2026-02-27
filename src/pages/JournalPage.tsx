@@ -211,6 +211,32 @@ function EntryForm({ form, onChange }: EntryFormProps) {
   )
 }
 
+// ── Tag styling ───────────────────────────────────────────────────────────────
+
+const TAG_STYLES: Record<string, string> = {
+  watering: 'bg-blue-100 text-blue-800',
+  treatment: 'bg-amber-100 text-amber-800',
+  planting: 'bg-green-100 text-green-800',
+  status: 'bg-slate-100 text-slate-700',
+  removal: 'bg-red-100 text-red-800',
+}
+
+function TagChip({ tag }: { tag: string }) {
+  const custom = TAG_STYLES[tag]
+  if (custom) {
+    return (
+      <span className={`inline-flex items-center rounded-full px-1.5 py-0 text-xs font-medium ${custom}`}>
+        {tag}
+      </span>
+    )
+  }
+  return (
+    <Badge variant="secondary" className="text-xs px-1.5 py-0">
+      {tag}
+    </Badge>
+  )
+}
+
 // ── Entry card ────────────────────────────────────────────────────────────────
 
 interface EntryCardProps {
@@ -221,6 +247,7 @@ interface EntryCardProps {
 
 function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const TRUNCATE_LEN = 200
   const needsTruncate = entry.text.length > TRUNCATE_LEN
   const displayText =
@@ -228,12 +255,6 @@ function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
 
   const visiblePhotos = entry.photos ? entry.photos.slice(0, 3) : []
   const extraPhotos = entry.photos ? entry.photos.length - 3 : 0
-
-  function handleDelete() {
-    if (window.confirm('Delete this journal entry?')) {
-      onDelete(entry.id)
-    }
-  }
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-3">
@@ -260,13 +281,31 @@ function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={handleDelete}
-            className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
-            aria-label="Delete entry"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          {confirmDelete ? (
+            <>
+              <span className="text-xs text-muted-foreground">Confirm?</span>
+              <button
+                onClick={() => onDelete(entry.id)}
+                className="rounded px-1.5 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="rounded p-1 text-muted-foreground hover:text-destructive transition-colors"
+              aria-label="Delete entry"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -287,9 +326,7 @@ function EntryCard({ entry, onEdit, onDelete }: EntryCardProps) {
       {entry.tags && entry.tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {entry.tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
-              {tag}
-            </Badge>
+            <TagChip key={tag} tag={tag} />
           ))}
         </div>
       )}

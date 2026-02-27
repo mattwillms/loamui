@@ -20,6 +20,7 @@ import {
   useCreateTreatmentLog,
 } from '@/api/plantings'
 import { useSchedules } from '@/api/schedules'
+import { useCreateJournalEntry } from '@/api/journal'
 import type { Planting, PlantingStatus } from '@/types/planting'
 
 const STATUS_OPTIONS: { value: PlantingStatus; label: string }[] = [
@@ -56,10 +57,12 @@ function todayISO() {
 interface Props {
   planting: Planting
   bedId: number
+  gardenId: number
+  bedName: string
   onClose: () => void
 }
 
-export function PlantingPanel({ planting, bedId, onClose }: Props) {
+export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: Props) {
   const [visible, setVisible] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [notes, setNotes] = useState(planting.notes ?? '')
@@ -95,7 +98,17 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
   const deletePlanting = useDeletePlanting()
   const createWateringLog = useCreateWateringLog()
   const createTreatmentLog = useCreateTreatmentLog()
+  const createJournalEntry = useCreateJournalEntry()
   const { data: schedules = [] } = useSchedules({ planting_id: planting.id })
+
+  const plantName = planting.plant?.common_name ?? 'Unknown plant'
+
+  function fireJournal(text: string, tags: string[]) {
+    createJournalEntry.mutate(
+      { date: todayISO(), text, tags, garden_id: gardenId, planting_id: planting.id },
+      { onError: (err) => console.log('Auto-journal failed:', err) },
+    )
+  }
 
   function toggleSection(id: string) {
     setOpenSections((prev) => {
@@ -109,6 +122,7 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
   async function handleStatusChange(status: PlantingStatus) {
     try {
       await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { status } })
+      fireJournal(`${plantName} status updated to ${status}`, ['status', status])
     } catch {
       toast.error('Failed to update status.')
     }
@@ -132,6 +146,10 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
         duration_minutes: waterDuration ? parseInt(waterDuration) : undefined,
         method: (waterMethod as 'drip' | 'hand' | 'sprinkler' | 'soaker' | 'other') || undefined,
       })
+      let journalText = `Watered ${plantName}`
+      if (waterAmount) journalText += ` — ${waterAmount}"`
+      if (waterDuration) journalText += ` (${waterDuration} min)`
+      fireJournal(journalText, ['watering'])
       toast.success('Watering logged.')
       setWaterAmount('')
       setWaterDuration('')
@@ -154,6 +172,9 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
         product_name: treatProduct || undefined,
         amount: treatAmount || undefined,
       })
+      let journalText = `Applied ${treatType} to ${plantName}`
+      if (treatProduct) journalText += ` (${treatProduct})`
+      fireJournal(journalText, ['treatment', treatType])
       toast.success('Treatment logged.')
       setTreatType('')
       setTreatProduct('')
@@ -178,6 +199,7 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
     }
     try {
       await deletePlanting.mutateAsync({ plantingId: planting.id, bedId })
+      fireJournal(`${plantName} removed from ${bedName}`, ['removal'])
       onClose()
     } catch {
       toast.error('Failed to remove planting.')
@@ -188,7 +210,8 @@ export function PlantingPanel({ planting, bedId, onClose }: Props) {
 
   return (
     <div
-      className={`absolute inset-y-0 right-0 z-20 flex w-80 flex-col bg-card border-l border-border shadow-xl transition-transform duration-300 ${visible ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`fixed right-0 bottom-0 z-30 flex w-80 flex-col bg-card border-l border-border shadow-xl transition-transform duration-300 ${visible ? 'translate-x-0' : 'translate-x-full'}`}
+      style={{ top: '56px' }}
     >
       {/* Header */}
       <div className="flex items-start gap-3 border-b border-border p-4">

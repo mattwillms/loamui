@@ -40,6 +40,7 @@ import {
 } from '@/api/plantings'
 import { usePlants } from '@/api/plants'
 import { PlantingPanel } from '@/components/PlantingPanel'
+import { useCreateJournalEntry } from '@/api/journal'
 import type { Planting } from '@/types/planting'
 import type { PlantSummary, PlantListParams } from '@/types/plant'
 
@@ -492,6 +493,7 @@ export function BedDetailPage() {
   const createPlanting = useCreatePlanting()
   const deletePlanting = useDeletePlanting()
   const updatePlanting = useUpdatePlanting()
+  const createJournalEntry = useCreateJournalEntry()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -647,13 +649,23 @@ export function BedDetailPage() {
 
     setPickerOpen(false)
     try {
-      await createPlanting.mutateAsync({
+      const created = await createPlanting.mutateAsync({
         bed_id: bedId,
         plant_id: plant.id,
         grid_x: pendingCell.x,
         grid_y: pendingCell.y,
         quantity: 1,
       })
+      createJournalEntry.mutate(
+        {
+          date: new Date().toISOString().split('T')[0],
+          text: `Planted ${plant.common_name} in ${bed?.name ?? ''}`,
+          tags: ['planting', plant.plant_type ?? 'unknown'],
+          garden_id: bed?.garden_id ?? null,
+          planting_id: created.id,
+        },
+        { onError: (err) => console.log('Auto-journal failed:', err) },
+      )
     } catch {
       toast.error('Failed to add planting.')
     }
@@ -784,7 +796,6 @@ export function BedDetailPage() {
 
         {hasGrid && (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-            <div className="relative">
             <div className="overflow-x-auto px-4 pb-6">
               <p className="mb-2 text-xs text-muted-foreground">
                 {cols} × {rows} ft &mdash; 1 cell = 1 ft &mdash; click an empty cell to add a plant
@@ -872,11 +883,12 @@ export function BedDetailPage() {
                 <PlantingPanel
                   planting={selectedPlanting}
                   bedId={bedId}
+                  gardenId={bed.garden_id}
+                  bedName={bed.name}
                   onClose={() => setSelectedPlantingId(null)}
                 />
               ) : null
             })()}
-            </div>{/* end relative */}
 
             <DragOverlay>
               {draggingPlanting ? (
