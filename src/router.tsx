@@ -9,6 +9,7 @@ import { PlantsPage } from '@/pages/PlantsPage'
 import { PlantDetailPage } from '@/pages/PlantDetailPage'
 import { SchedulePage } from '@/pages/SchedulePage'
 import { JournalPage } from '@/pages/JournalPage'
+import { ProfilePage } from '@/pages/ProfilePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -58,6 +59,10 @@ export const router = createBrowserRouter([
       {
         path: 'journal',
         element: <JournalPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
       },
       {
         path: '*',

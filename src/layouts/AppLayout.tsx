@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useNavigate } from 'react-router'
 import {
   LayoutDashboard,
   Leaf,
@@ -10,6 +10,7 @@ import {
   X,
   LogOut,
   ChevronDown,
+  User,
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -50,6 +51,7 @@ function getInitials(name: string): string {
 
 export function AppLayout() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const initials = user ? getInitials(user.name) : '?'
@@ -162,6 +164,14 @@ export function AppLayout() {
                   <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => navigate('/profile')}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="cursor-pointer text-destructive focus:text-destructive"
