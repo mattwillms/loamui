@@ -14,7 +14,7 @@ function ProfileSkeleton() {
         <Skeleton className="h-7 w-24" />
       </CardHeader>
       <CardContent className="space-y-5">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3, 4].map((i) => (
           <div key={i} className="space-y-2">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-9 w-full" />
@@ -30,14 +30,16 @@ export function ProfilePage() {
   const { data: user, isLoading } = useMe()
   const updateMe = useUpdateMe()
 
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [timezone, setTimezone] = useState('')
   const [zipCode, setZipCode] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
-      setName(user.name ?? '')
+      setFirstName(user.first_name ?? '')
+      setLastName(user.last_name ?? '')
       setTimezone(user.timezone ?? '')
       setZipCode(user.zip_code ?? '')
     }
@@ -50,7 +52,8 @@ export function ProfilePage() {
     setError(null)
     try {
       await updateMe.mutateAsync({
-        name: name.trim() || undefined,
+        first_name: firstName.trim() || undefined,
+        last_name: lastName.trim() || undefined,
         timezone: timezone.trim() || undefined,
         zip_code: zipCode.trim() || undefined,
       })
@@ -74,14 +77,26 @@ export function ProfilePage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Editable fields */}
-            <div className="space-y-2">
-              <Label htmlFor="profile-name">Name</Label>
-              <Input
-                id="profile-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="profile-first-name">First Name</Label>
+                <Input
+                  id="profile-first-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-last-name">Last Name</Label>
+                <Input
+                  id="profile-last-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last name"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

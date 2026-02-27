@@ -48,6 +48,13 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -58,14 +65,14 @@ export function DashboardPage() {
   const { data: seasonal } = useSeasonalTasks()
   const { data: stats } = useStats()
 
-  const firstName = user?.name.split(' ')[0] ?? 'there'
+  const firstName = user?.first_name ?? 'there'
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       {/* Welcome */}
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">
-          Good morning, {firstName}.
+          {getGreeting()}, {firstName}.
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's what's growing.</p>
       </div>

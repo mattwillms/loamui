@@ -16,9 +16,9 @@ export async function login(email: string, password: string): Promise<TokenRespo
   return response.data
 }
 
-/** POST /auth/register — JSON body { name, email, password } */
-export async function register(name: string, email: string, password: string): Promise<User> {
-  const response = await apiClient.post<User>('/auth/register', { name, email, password })
+/** POST /auth/register — JSON body { first_name, last_name?, email, password } */
+export async function register(first_name: string, email: string, password: string, last_name?: string): Promise<User> {
+  const response = await apiClient.post<User>('/auth/register', { first_name, last_name, email, password })
   return response.data
 }
 

@@ -19,7 +19,8 @@ async function getMe(): Promise<User> {
 }
 
 async function updateMe(data: {
-  name?: string
+  first_name?: string
+  last_name?: string
   timezone?: string
   zip_code?: string
 }): Promise<User> {
