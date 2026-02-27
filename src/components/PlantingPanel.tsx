@@ -103,9 +103,9 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
 
   const plantName = planting.plant?.common_name ?? 'Unknown plant'
 
-  function fireJournal(text: string, tags: string[]) {
+  function fireJournal(text: string, tags: string[], date: string = todayISO()) {
     createJournalEntry.mutate(
-      { date: todayISO(), text, tags, garden_id: gardenId, planting_id: planting.id },
+      { date, text, tags, garden_id: gardenId, planting_id: planting.id },
       { onError: (err) => console.log('Auto-journal failed:', err) },
     )
   }
@@ -149,7 +149,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
       let journalText = `Watered ${plantName}`
       if (waterAmount) journalText += ` — ${waterAmount}"`
       if (waterDuration) journalText += ` (${waterDuration} min)`
-      fireJournal(journalText, ['watering'])
+      fireJournal(journalText, ['watering'], waterDate)
       toast.success('Watering logged.')
       setWaterAmount('')
       setWaterDuration('')
@@ -174,7 +174,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
       })
       let journalText = `Applied ${treatType} to ${plantName}`
       if (treatProduct) journalText += ` (${treatProduct})`
-      fireJournal(journalText, ['treatment', treatType])
+      fireJournal(journalText, ['treatment', treatType], treatDate)
       toast.success('Treatment logged.')
       setTreatType('')
       setTreatProduct('')
