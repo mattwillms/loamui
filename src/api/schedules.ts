@@ -3,6 +3,7 @@ import type { Schedule, ScheduleType } from '@/types/schedule'
 import { apiClient } from './client'
 
 interface ScheduleParams {
+  planting_id?: number
   due_before?: string
   type?: ScheduleType
   include_inactive?: boolean

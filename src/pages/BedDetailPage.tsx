@@ -39,6 +39,7 @@ import {
   useUpdatePlanting,
 } from '@/api/plantings'
 import { usePlants } from '@/api/plants'
+import { PlantingPanel } from '@/components/PlantingPanel'
 import type { Planting } from '@/types/planting'
 import type { PlantSummary, PlantListParams } from '@/types/plant'
 
@@ -783,6 +784,7 @@ export function BedDetailPage() {
 
         {hasGrid && (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+            <div className="relative">
             <div className="overflow-x-auto px-4 pb-6">
               <p className="mb-2 text-xs text-muted-foreground">
                 {cols} × {rows} ft &mdash; 1 cell = 1 ft &mdash; click an empty cell to add a plant
@@ -846,10 +848,7 @@ export function BedDetailPage() {
                       onDelete={() => handleDelete(cell.planting)}
                       onLock={() => handleLock(cell.planting)}
                       onUnlock={() => handleUnlock(cell.planting)}
-                      onSelect={() => {
-                        setSelectedPlantingId(cell.planting.id)
-                        console.log('open panel', cell.planting.id)
-                      }}
+                      onSelect={() => setSelectedPlantingId(cell.planting.id)}
                       onClickUnlocked={() => setSelectedPlantingId(null)}
                     />
                   )
@@ -865,7 +864,19 @@ export function BedDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>{/* end overflow-x-auto */}
+
+            {selectedPlantingId != null && (() => {
+              const selectedPlanting = plantings.find(p => p.id === selectedPlantingId)
+              return selectedPlanting ? (
+                <PlantingPanel
+                  planting={selectedPlanting}
+                  bedId={bedId}
+                  onClose={() => setSelectedPlantingId(null)}
+                />
+              ) : null
+            })()}
+            </div>{/* end relative */}
 
             <DragOverlay>
               {draggingPlanting ? (

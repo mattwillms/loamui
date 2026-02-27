@@ -26,6 +26,28 @@ export interface Planting {
   updated_at: string
 }
 
+export type PlantingStatus =
+  | 'planned' | 'seedling' | 'growing' | 'flowering'
+  | 'fruiting' | 'harvesting' | 'dormant' | 'removed'
+
+export interface WateringLogCreate {
+  planting_id: number
+  date: string
+  amount_inches?: number
+  duration_minutes?: number
+  method?: 'drip' | 'hand' | 'sprinkler' | 'soaker' | 'other'
+  notes?: string
+}
+
+export interface TreatmentLogCreate {
+  planting_id: number
+  date: string
+  treatment_type: 'herbicide' | 'insecticide' | 'fungicide' | 'fertilizer' | 'amendment'
+  product_name?: string
+  amount?: string
+  notes?: string
+}
+
 export interface PlantingCreate {
   bed_id: number
   plant_id: number

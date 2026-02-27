@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Planting, PlantingCreate } from '@/types/planting'
+import type { Planting, PlantingCreate, WateringLogCreate, TreatmentLogCreate } from '@/types/planting'
 import { apiClient } from './client'
 
 export function useBedPlantings(bedId: number) {
@@ -48,5 +48,19 @@ export function useDeletePlanting() {
     onSuccess: (_, { bedId }) => {
       queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
     },
+  })
+}
+
+export function useCreateWateringLog() {
+  return useMutation({
+    mutationFn: (data: WateringLogCreate) =>
+      apiClient.post('/watering-logs', data).then((r) => r.data),
+  })
+}
+
+export function useCreateTreatmentLog() {
+  return useMutation({
+    mutationFn: (data: TreatmentLogCreate) =>
+      apiClient.post('/treatments', data).then((r) => r.data),
   })
 }
