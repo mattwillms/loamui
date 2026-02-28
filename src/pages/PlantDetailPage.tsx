@@ -140,7 +140,12 @@ export function PlantDetailPage() {
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">{plant.common_name}</h1>
         {plant.scientific_name && (
-          <p className="mt-1 text-base italic text-muted-foreground">{plant.scientific_name}</p>
+          <p className="mt-1 text-base italic text-muted-foreground">
+            {plant.scientific_name}
+            {plant.cultivar_name && (
+              <span className="not-italic text-foreground/70"> '{plant.cultivar_name}'</span>
+            )}
+          </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {plant.plant_type && (

@@ -17,6 +17,7 @@ import type { PlantListParams } from '@/types/plant'
 
 const CYCLE_OPTIONS = [
   { value: 'annual', label: 'Annual' },
+  { value: 'biennial', label: 'Biennial' },
   { value: 'perennial', label: 'Perennial' },
   { value: 'shrub', label: 'Shrub' },
   { value: 'tree', label: 'Tree' },
@@ -195,6 +196,9 @@ export function PlantsPage() {
                   {plant.scientific_name && (
                     <p className="truncate text-sm italic text-muted-foreground">
                       {plant.scientific_name}
+                      {plant.cultivar_name && (
+                        <span className="not-italic text-foreground/60"> '{plant.cultivar_name}'</span>
+                      )}
                     </p>
                   )}
                   <div className="mt-3 flex flex-wrap gap-1.5">

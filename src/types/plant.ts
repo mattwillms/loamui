@@ -3,6 +3,7 @@ export interface PlantSummary {
   id: number
   common_name: string
   scientific_name: string | null
+  cultivar_name: string | null
   plant_type: string | null
   sun_requirement: string | null
   water_needs: string | null
