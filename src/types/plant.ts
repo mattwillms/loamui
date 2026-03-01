@@ -11,6 +11,9 @@ export interface PlantSummary {
   spacing_inches: number | null
   image_url: string | null
   source: string
+  edible: boolean | null
+  family: string | null
+  life_cycle: string | null
 }
 
 // Plant is returned by GET /plants/{id} (detail)
@@ -28,8 +31,60 @@ export interface Plant extends PlantSummary {
   description: string | null
   is_user_defined: boolean
   external_id: string | null
+  data_sources: string[] | null
   created_at: string
   updated_at: string
+
+  // Physical / Growing
+  height_inches: number | null
+  width_inches: number | null
+  soil_type: string | null
+  soil_ph_min: number | null
+  soil_ph_max: number | null
+  growth_rate: string | null
+  life_cycle: string | null
+  drought_resistant: boolean | null
+  days_to_harvest: number | null
+
+  // Propagation / Germination
+  propagation_method: string | null
+  germination_days_min: number | null
+  germination_days_max: number | null
+  germination_temp_min_f: number | null
+  germination_temp_max_f: number | null
+  sow_outdoors: string | null
+  sow_indoors: string | null
+  start_indoors_weeks: number | null
+  start_outdoors_weeks: number | null
+  plant_transplant: string | null
+  plant_cuttings: string | null
+  plant_division: string | null
+
+  // Geographic / Taxonomy
+  native_to: string | null
+  habitat: string | null
+  family: string | null
+  genus: string | null
+
+  // Edible / Medicinal
+  edible: boolean | null
+  edible_parts: string | null
+  edible_uses: string | null
+  medicinal: string | null
+  medicinal_parts: string | null
+  utility: string | null
+  warning: string | null
+
+  // Other
+  pollination: string | null
+  nitrogen_fixing: boolean | null
+  root_type: string | null
+  root_depth: string | null
+
+  // Links
+  wikipedia_url: string | null
+  pfaf_url: string | null
+  powo_url: string | null
 }
 
 export interface PlantListResponse {
