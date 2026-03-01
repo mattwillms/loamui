@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CompanionRecommendation, Plant, PlantListParams, PlantListResponse } from '@/types/plant'
 import { apiClient } from './client'
 
@@ -32,5 +32,25 @@ export function useCompanionRecommendations(plantId: number) {
         })
         .then((r) => r.data),
     enabled: !isNaN(plantId),
+  })
+}
+
+export function useFavoritePlant() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (plantId: number) => apiClient.post(`/plants/${plantId}/favorite`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plants'] })
+    },
+  })
+}
+
+export function useUnfavoritePlant() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (plantId: number) => apiClient.delete(`/plants/${plantId}/favorite`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plants'] })
+    },
   })
 }

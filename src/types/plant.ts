@@ -14,6 +14,7 @@ export interface PlantSummary {
   edible: boolean | null
   family: string | null
   life_cycle: string | null
+  is_favorite: boolean
 }
 
 // Plant is returned by GET /plants/{id} (detail)
@@ -126,6 +127,7 @@ export interface PlantListParams {
   watering?: string
   sunlight?: string
   hardiness_zone?: string
+  favorites_only?: boolean
   page?: number
   per_page?: number
 }

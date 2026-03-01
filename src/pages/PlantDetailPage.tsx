@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Sprout, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Sprout, AlertTriangle, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { usePlant, useCompanionRecommendations } from '@/api/plants'
+import { usePlant, useCompanionRecommendations, useFavoritePlant, useUnfavoritePlant } from '@/api/plants'
 import type { CompanionEntry } from '@/types/plant'
 
 interface CompanionRowProps {
@@ -108,6 +108,17 @@ export function PlantDetailPage() {
 
   const { data: plant, isLoading, isError } = usePlant(plantId)
   const { data: companions } = useCompanionRecommendations(plantId)
+  const favoriteMutation = useFavoritePlant()
+  const unfavoriteMutation = useUnfavoritePlant()
+
+  function handleFavoriteClick() {
+    if (!plant) return
+    if (plant.is_favorite) {
+      unfavoriteMutation.mutate(plant.id)
+    } else {
+      favoriteMutation.mutate(plant.id)
+    }
+  }
 
   if (isNaN(plantId)) {
     return (
@@ -248,7 +259,7 @@ export function PlantDetailPage() {
             )}
           </p>
         )}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {plant.plant_type && (
             <Badge variant="secondary">{plant.plant_type}</Badge>
           )}
@@ -264,6 +275,15 @@ export function PlantDetailPage() {
           {plant.family && (
             <Badge variant="secondary">{plant.family}</Badge>
           )}
+          <button
+            onClick={handleFavoriteClick}
+            className="ml-auto rounded-full p-1.5 transition-colors hover:bg-muted"
+            title={plant.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Heart
+              className={`h-5 w-5 ${plant.is_favorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
+            />
+          </button>
         </div>
       </div>
 
