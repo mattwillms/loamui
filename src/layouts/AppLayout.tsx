@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import {
   LayoutDashboard,
   Leaf,
@@ -108,10 +108,12 @@ export function AppLayout() {
       >
         {/* Wordmark */}
         <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-5">
-          <img src="/icon.svg" alt="Loam" className="h-6 w-6 rounded-sm" />
-          <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
-            loam
-          </span>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/icon.svg" alt="Loam" className="h-6 w-6 rounded-sm" />
+            <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
+              loam
+            </span>
+          </Link>
           <button
             className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground lg:hidden"
             onClick={() => setSidebarOpen(false)}
@@ -175,12 +177,12 @@ export function AppLayout() {
             {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
           </button>
 
-          <span className={cn(
+          <Link to="/" className={cn(
             'font-serif text-xl font-semibold tracking-tight text-foreground',
             !sidebarCollapsed && 'lg:hidden',
           )}>
             loam
-          </span>
+          </Link>
 
           <div className="flex-1" />
 
