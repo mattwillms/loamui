@@ -111,7 +111,7 @@ export function AppLayout() {
           <Link to="/" className="flex items-center gap-2.5">
             <img src="/icon.svg" alt="Loam" className="h-6 w-6 rounded-sm" />
             <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
-              loam
+              Loam
             </span>
           </Link>
           <button
@@ -181,7 +181,7 @@ export function AppLayout() {
             'font-serif text-xl font-semibold tracking-tight text-foreground',
             !sidebarCollapsed && 'lg:hidden',
           )}>
-            loam
+            Loam
           </Link>
 
           <div className="flex-1" />
