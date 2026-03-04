@@ -8,6 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { usePlant, useCompanionRecommendations, useFavoritePlant, useUnfavoritePlant } from '@/api/plants'
 import type { CompanionEntry } from '@/types/plant'
 
+function hasRealImage(imageUrl: string | null | undefined): boolean {
+  return !!imageUrl && !imageUrl.includes('sk3776-image-kwvuoab1')
+}
+
 interface CompanionRowProps {
   entries: CompanionEntry[]
   label: string
@@ -24,7 +28,7 @@ function CompanionCard({ entry }: { entry: CompanionEntry }) {
       onClick={() => navigate(`/plants/${p.id}`)}
       className="flex w-[130px] flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-shadow hover:shadow-md"
     >
-      {p.image_url && !imgError ? (
+      {hasRealImage(p.image_url) && !imgError ? (
         <img
           src={`/api/v1/plants/${p.id}/image`}
           alt={p.common_name}
@@ -32,7 +36,7 @@ function CompanionCard({ entry }: { entry: CompanionEntry }) {
           onError={() => setImgError(true)}
         />
       ) : (
-        <PlantPlaceholder className="h-16 w-16 rounded" iconClassName="h-8 w-8" />
+        <PlantPlaceholder className="h-16 w-16 rounded" />
       )}
       <span className="line-clamp-2 text-xs font-medium leading-tight text-foreground">
         {p.common_name}
@@ -239,7 +243,7 @@ export function PlantDetailPage() {
       </Button>
 
       {/* Hero image */}
-      {plant.image_url && !heroImgError ? (
+      {hasRealImage(plant.image_url) && !heroImgError ? (
         <img
           src={`/api/v1/plants/${plant.id}/image`}
           alt={plant.common_name}
@@ -247,7 +251,7 @@ export function PlantDetailPage() {
           onError={() => setHeroImgError(true)}
         />
       ) : (
-        <PlantPlaceholder className="h-64 w-full rounded-lg" iconClassName="h-16 w-16" />
+        <PlantPlaceholder className="h-64 w-full rounded-lg" />
       )}
 
       {/* Heading */}

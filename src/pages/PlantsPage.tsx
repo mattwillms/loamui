@@ -43,6 +43,10 @@ const SUNLIGHT_OPTIONS = [
 
 const PER_PAGE = 20
 
+function hasRealImage(plant: PlantSummary): boolean {
+  return !!plant.image_url && !plant.image_url.includes('sk3776-image-kwvuoab1')
+}
+
 function PlantCard({ plant }: { plant: PlantSummary }) {
   const navigate = useNavigate()
   const favoriteMutation = useFavoritePlant()
@@ -65,7 +69,7 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
     >
       {/* Image with heart overlay */}
       <div className="relative">
-        {plant.image_url && !imgError ? (
+        {hasRealImage(plant) && !imgError ? (
           <img
             src={`/api/v1/plants/${plant.id}/image`}
             alt={plant.common_name}
