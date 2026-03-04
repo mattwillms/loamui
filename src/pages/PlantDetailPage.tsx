@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, Sprout, AlertTriangle, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -110,6 +111,7 @@ export function PlantDetailPage() {
   const { data: companions } = useCompanionRecommendations(plantId)
   const favoriteMutation = useFavoritePlant()
   const unfavoriteMutation = useUnfavoritePlant()
+  const [heroImgError, setHeroImgError] = useState(false)
 
   function handleFavoriteClick() {
     if (!plant) return
@@ -122,7 +124,7 @@ export function PlantDetailPage() {
 
   if (isNaN(plantId)) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to plants
@@ -134,7 +136,7 @@ export function PlantDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div>
         <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     )
@@ -142,7 +144,7 @@ export function PlantDetailPage() {
 
   if (isError || !plant) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to plants
@@ -228,7 +230,7 @@ export function PlantDetailPage() {
   const germinationTemp = formatRange(plant.germination_temp_min_f, plant.germination_temp_max_f, '°F')
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="space-y-6">
       {/* Back */}
       <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -236,11 +238,12 @@ export function PlantDetailPage() {
       </Button>
 
       {/* Hero image */}
-      {plant.image_url ? (
+      {plant.image_url && !heroImgError ? (
         <img
           src={`/api/v1/plants/${plant.id}/image`}
           alt={plant.common_name}
           className="h-64 w-full rounded-lg object-cover"
+          onError={() => setHeroImgError(true)}
         />
       ) : (
         <div className="flex h-64 w-full items-center justify-center rounded-lg bg-primary/5">

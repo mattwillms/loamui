@@ -723,7 +723,7 @@ export function BedDetailPage() {
   return (
     <div className="flex flex-col gap-8">
       {/* Breadcrumb + header */}
-      <div className="mx-auto w-full max-w-5xl space-y-6">
+      <div className="w-full space-y-6">
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Link to="/gardens" className="hover:text-foreground">Gardens</Link>
           <ChevronRight className="h-3.5 w-3.5" />
@@ -764,7 +764,7 @@ export function BedDetailPage() {
       {/* Grid workspace */}
       <div>
         {/* Controls row */}
-        <div className="mx-auto mb-4 flex w-full max-w-5xl items-center justify-between">
+        <div className="mb-4 flex w-full items-center justify-between">
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
             Plantings
           </h2>
@@ -787,7 +787,7 @@ export function BedDetailPage() {
         </div>
 
         {!hasGrid && (
-          <div className="mx-auto max-w-5xl">
+          <div>
             <p className="text-sm text-muted-foreground">
               Set width and length on this bed to enable the layout designer.
             </p>

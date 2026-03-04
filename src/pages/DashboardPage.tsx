@@ -68,7 +68,7 @@ export function DashboardPage() {
   const firstName = user?.first_name ?? 'there'
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="space-y-8">
       {/* Welcome */}
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">

@@ -90,7 +90,7 @@ export function SchedulePage() {
   const hasItems = sortedDates.length > 0
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="space-y-8">
       {/* Heading */}
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">Schedule</h1>

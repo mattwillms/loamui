@@ -46,6 +46,7 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
   const navigate = useNavigate()
   const favoriteMutation = useFavoritePlant()
   const unfavoriteMutation = useUnfavoritePlant()
+  const [imgError, setImgError] = useState(false)
 
   function handleFavoriteClick(e: React.MouseEvent) {
     e.stopPropagation()
@@ -63,11 +64,12 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
     >
       {/* Image with heart overlay */}
       <div className="relative">
-        {plant.image_url ? (
+        {plant.image_url && !imgError ? (
           <img
             src={`/api/v1/plants/${plant.id}/image`}
             alt={plant.common_name}
             className="h-40 w-full object-cover"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex h-40 w-full items-center justify-center bg-primary/5">
@@ -160,7 +162,7 @@ export function PlantsPage() {
   const totalPages = data ? Math.ceil(data.total / PER_PAGE) : 0
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">Plants</h1>

@@ -67,7 +67,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold text-foreground">Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">Manage your account details.</p>

@@ -128,7 +128,7 @@ export function GardenDetailPage() {
   const val = (v: string | number | null) => (v !== null && v !== undefined ? v : '—')
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="space-y-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1 text-sm text-muted-foreground">
         <Link to="/gardens" className="hover:text-foreground">Gardens</Link>
