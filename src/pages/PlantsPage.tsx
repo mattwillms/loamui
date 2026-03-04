@@ -44,7 +44,10 @@ const SUNLIGHT_OPTIONS = [
 const PER_PAGE = 20
 
 function hasRealImage(plant: PlantSummary): boolean {
-  return !!plant.image_url && !plant.image_url.includes('sk3776-image-kwvuoab1')
+  if (!plant.image_url) return false
+  if (plant.image_url.includes('sk3776-image-kwvuoab1')) return false
+  if (plant.image_url.includes('upgrade-plan')) return false
+  return true
 }
 
 function PlantCard({ plant }: { plant: PlantSummary }) {

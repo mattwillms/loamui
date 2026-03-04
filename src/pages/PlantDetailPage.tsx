@@ -9,7 +9,10 @@ import { usePlant, useCompanionRecommendations, useFavoritePlant, useUnfavoriteP
 import type { CompanionEntry } from '@/types/plant'
 
 function hasRealImage(imageUrl: string | null | undefined): boolean {
-  return !!imageUrl && !imageUrl.includes('sk3776-image-kwvuoab1')
+  if (!imageUrl) return false
+  if (imageUrl.includes('sk3776-image-kwvuoab1')) return false
+  if (imageUrl.includes('upgrade-plan')) return false
+  return true
 }
 
 interface CompanionRowProps {
