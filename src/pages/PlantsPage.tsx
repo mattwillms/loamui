@@ -47,6 +47,7 @@ function hasRealImage(plant: PlantSummary): boolean {
   if (!plant.image_url) return false
   if (plant.image_url.includes('sk3776-image-kwvuoab1')) return false
   if (plant.image_url.includes('upgrade-plan')) return false
+  if (plant.image_url.includes('permapeople-permaculture-plant-database-blank')) return false
   return true
 }
 

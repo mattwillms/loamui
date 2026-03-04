@@ -12,6 +12,7 @@ function hasRealImage(imageUrl: string | null | undefined): boolean {
   if (!imageUrl) return false
   if (imageUrl.includes('sk3776-image-kwvuoab1')) return false
   if (imageUrl.includes('upgrade-plan')) return false
+  if (imageUrl.includes('permapeople-permaculture-plant-database-blank')) return false
   return true
 }
 
