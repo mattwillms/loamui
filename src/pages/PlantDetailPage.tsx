@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Sprout, AlertTriangle, Heart } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Heart } from 'lucide-react'
+import { PlantPlaceholder } from '@/components/PlantPlaceholder'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -13,8 +14,39 @@ interface CompanionRowProps {
   accent: 'green' | 'red'
 }
 
-function CompanionRow({ entries, label, accent }: CompanionRowProps) {
+function CompanionCard({ entry }: { entry: CompanionEntry }) {
   const navigate = useNavigate()
+  const [imgError, setImgError] = useState(false)
+  const p = entry.plant!
+
+  return (
+    <button
+      onClick={() => navigate(`/plants/${p.id}`)}
+      className="flex w-[130px] flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-shadow hover:shadow-md"
+    >
+      {p.image_url && !imgError ? (
+        <img
+          src={`/api/v1/plants/${p.id}/image`}
+          alt={p.common_name}
+          className="h-16 w-16 rounded object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <PlantPlaceholder className="h-16 w-16 rounded" iconClassName="h-8 w-8" />
+      )}
+      <span className="line-clamp-2 text-xs font-medium leading-tight text-foreground">
+        {p.common_name}
+      </span>
+      {p.plant_type && (
+        <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+          {p.plant_type}
+        </Badge>
+      )}
+    </button>
+  )
+}
+
+function CompanionRow({ entries, label, accent }: CompanionRowProps) {
   const resolved = entries.filter((e) => e.resolved && e.plant)
 
   if (resolved.length === 0) return null
@@ -28,40 +60,9 @@ function CompanionRow({ entries, label, accent }: CompanionRowProps) {
     <div className="space-y-3">
       <p className={headerClass}>{label}</p>
       <div className="flex flex-wrap gap-3">
-        {resolved.map((entry) => {
-          const p = entry.plant!
-          return (
-            <button
-              key={p.id}
-              onClick={() => navigate(`/plants/${p.id}`)}
-              className="flex w-[130px] flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-shadow hover:shadow-md"
-            >
-              {p.image_url ? (
-                <img
-                  src={`/api/v1/plants/${p.id}/image`}
-                  alt={p.common_name}
-                  className="h-16 w-16 rounded object-cover"
-                  onError={(e) => {
-                    const el = e.currentTarget
-                    el.style.display = 'none'
-                    el.nextElementSibling?.classList.remove('hidden')
-                  }}
-                />
-              ) : null}
-              <Sprout
-                className={`h-16 w-16 text-primary/20 ${p.image_url ? 'hidden' : ''}`}
-              />
-              <span className="line-clamp-2 text-xs font-medium leading-tight text-foreground">
-                {p.common_name}
-              </span>
-              {p.plant_type && (
-                <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                  {p.plant_type}
-                </Badge>
-              )}
-            </button>
-          )
-        })}
+        {resolved.map((entry) => (
+          <CompanionCard key={entry.plant!.id} entry={entry} />
+        ))}
       </div>
     </div>
   )
@@ -246,9 +247,7 @@ export function PlantDetailPage() {
           onError={() => setHeroImgError(true)}
         />
       ) : (
-        <div className="flex h-64 w-full items-center justify-center rounded-lg bg-primary/5">
-          <Sprout className="h-16 w-16 text-primary/20" />
-        </div>
+        <PlantPlaceholder className="h-64 w-full rounded-lg" iconClassName="h-16 w-16" />
       )}
 
       {/* Heading */}

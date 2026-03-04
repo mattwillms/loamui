@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Sprout, Search, Heart } from 'lucide-react'
+import { PlantPlaceholder } from '@/components/PlantPlaceholder'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -72,9 +73,7 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="flex h-40 w-full items-center justify-center bg-primary/5">
-            <Sprout className="h-10 w-10 text-primary/20" />
-          </div>
+          <PlantPlaceholder />
         )}
         <button
           onClick={handleFavoriteClick}
