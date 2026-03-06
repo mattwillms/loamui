@@ -108,6 +108,11 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
   )
 }
 
+// Scroll container is the <main> element in AppLayout, not window
+function getScrollContainer(): HTMLElement | null {
+  return document.querySelector('main.overflow-auto') as HTMLElement | null
+}
+
 export function PlantsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -122,7 +127,6 @@ export function PlantsPage() {
 
   // Local input buffer for debounce
   const [inputValue, setInputValue] = useState(nameFilter)
-  const [isFirstRender, setIsFirstRender] = useState(true)
 
   const updateParams = useCallback((updates: Record<string, string | undefined>) => {
     setSearchParams((prev) => {
@@ -138,12 +142,8 @@ export function PlantsPage() {
     })
   }, [setSearchParams])
 
-  // Debounce search input ~400ms — skip first render to preserve page on back nav
+  // Debounce search input ~400ms
   useEffect(() => {
-    if (isFirstRender) {
-      setIsFirstRender(false)
-      return
-    }
     const timer = setTimeout(() => {
       updateParams({ name: inputValue || undefined, page: '1' })
     }, 400)
@@ -187,21 +187,22 @@ export function PlantsPage() {
 
   const { data, isLoading } = usePlants(params)
 
-  // Keep a ref to searchParams so the unmount closure captures the latest value
+  // Keep searchParams current in a ref so unmount closure has latest value
   const searchParamsRef = useRef(searchParams.toString())
   useEffect(() => {
     searchParamsRef.current = searchParams.toString()
   }, [searchParams])
 
-  // Save scroll position on unmount only
+  // Save scroll position when leaving the page
   useEffect(() => {
     return () => {
-      sessionStorage.setItem('plants-scroll-y', String(window.scrollY))
+      const el = getScrollContainer()
+      sessionStorage.setItem('plants-scroll-y', String(el ? el.scrollTop : 0))
       sessionStorage.setItem('plants-scroll-params', searchParamsRef.current)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Restore scroll position after data loads
+  // Restore scroll position after data loads — only once per mount
   const hasRestoredScroll = useRef(false)
   useEffect(() => {
     if (!data || hasRestoredScroll.current) return
@@ -210,7 +211,8 @@ export function PlantsPage() {
     if (savedY && savedParams === searchParams.toString()) {
       hasRestoredScroll.current = true
       setTimeout(() => {
-        window.scrollTo({ top: parseInt(savedY), behavior: 'instant' })
+        const el = getScrollContainer()
+        if (el) el.scrollTop = parseInt(savedY)
       }, 50)
       sessionStorage.removeItem('plants-scroll-y')
       sessionStorage.removeItem('plants-scroll-params')
