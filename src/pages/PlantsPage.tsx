@@ -187,6 +187,27 @@ export function PlantsPage() {
 
   const { data, isLoading } = usePlants(params)
 
+  // Save scroll position on unmount
+  useEffect(() => {
+    const key = `plants-scroll:${searchParams.toString()}`
+    return () => {
+      sessionStorage.setItem(key, String(window.scrollY))
+    }
+  }, [searchParams])
+
+  // Restore scroll position after data loads
+  useEffect(() => {
+    if (!data) return
+    const key = `plants-scroll:${searchParams.toString()}`
+    const saved = sessionStorage.getItem(key)
+    if (saved) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: parseInt(saved), behavior: 'instant' as ScrollBehavior })
+      })
+      sessionStorage.removeItem(key)
+    }
+  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const totalPages = data ? Math.ceil(data.total / PER_PAGE) : 0
 
   return (
