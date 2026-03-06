@@ -202,7 +202,7 @@ export function PlantsPage() {
     const saved = sessionStorage.getItem(key)
     if (saved) {
       requestAnimationFrame(() => {
-        window.scrollTo({ top: parseInt(saved), behavior: 'instant' as ScrollBehavior })
+        window.scrollTo({ top: parseInt(saved), behavior: 'instant' })
       })
       sessionStorage.removeItem(key)
     }
