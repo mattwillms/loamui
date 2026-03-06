@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router'
 import { Sprout, Search, Heart } from 'lucide-react'
 import { PlantPlaceholder } from '@/components/PlantPlaceholder'
@@ -187,24 +187,33 @@ export function PlantsPage() {
 
   const { data, isLoading } = usePlants(params)
 
-  // Save scroll position on unmount
+  // Keep a ref to searchParams so the unmount closure captures the latest value
+  const searchParamsRef = useRef(searchParams.toString())
   useEffect(() => {
-    const key = `plants-scroll:${searchParams.toString()}`
-    return () => {
-      sessionStorage.setItem(key, String(window.scrollY))
-    }
+    searchParamsRef.current = searchParams.toString()
   }, [searchParams])
 
-  // Restore scroll position after data loads
+  // Save scroll position on unmount only
   useEffect(() => {
-    if (!data) return
-    const key = `plants-scroll:${searchParams.toString()}`
-    const saved = sessionStorage.getItem(key)
-    if (saved) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: parseInt(saved), behavior: 'instant' })
-      })
-      sessionStorage.removeItem(key)
+    return () => {
+      sessionStorage.setItem('plants-scroll-y', String(window.scrollY))
+      sessionStorage.setItem('plants-scroll-params', searchParamsRef.current)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Restore scroll position after data loads
+  const hasRestoredScroll = useRef(false)
+  useEffect(() => {
+    if (!data || hasRestoredScroll.current) return
+    const savedParams = sessionStorage.getItem('plants-scroll-params')
+    const savedY = sessionStorage.getItem('plants-scroll-y')
+    if (savedY && savedParams === searchParams.toString()) {
+      hasRestoredScroll.current = true
+      setTimeout(() => {
+        window.scrollTo({ top: parseInt(savedY), behavior: 'instant' })
+      }, 50)
+      sessionStorage.removeItem('plants-scroll-y')
+      sessionStorage.removeItem('plants-scroll-params')
     }
   }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
 
