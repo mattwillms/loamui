@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router'
+import { useParams, useNavigate, Link } from 'react-router'
 import { ArrowLeft, AlertTriangle, Heart } from 'lucide-react'
 import { PlantPlaceholder } from '@/components/PlantPlaceholder'
 import { Button } from '@/components/ui/button'
@@ -23,13 +23,12 @@ interface CompanionRowProps {
 }
 
 function CompanionCard({ entry }: { entry: CompanionEntry }) {
-  const navigate = useNavigate()
   const [imgError, setImgError] = useState(false)
   const p = entry.plant!
 
   return (
-    <button
-      onClick={() => navigate(`/plants/${p.id}`)}
+    <Link
+      to={`/plants/${p.id}`}
       className="flex w-[130px] flex-col items-center gap-1.5 rounded-lg border border-border bg-card p-2 text-center transition-shadow hover:shadow-md"
     >
       {hasRealImage(p.image_url) && !imgError ? (
@@ -50,7 +49,7 @@ function CompanionCard({ entry }: { entry: CompanionEntry }) {
           {p.plant_type}
         </Badge>
       )}
-    </button>
+    </Link>
   )
 }
 
@@ -134,7 +133,7 @@ export function PlantDetailPage() {
   if (isNaN(plantId)) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to plants
         </Button>
@@ -154,7 +153,7 @@ export function PlantDetailPage() {
   if (isError || !plant) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to plants
         </Button>
@@ -241,7 +240,7 @@ export function PlantDetailPage() {
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Button variant="ghost" size="sm" onClick={() => navigate('/plants')}>
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to plants
       </Button>

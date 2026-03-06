@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams, Link } from 'react-router'
 import { Sprout, Search, Heart } from 'lucide-react'
 import { PlantPlaceholder } from '@/components/PlantPlaceholder'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,16 +17,9 @@ import { usePlants, useFavoritePlant, useUnfavoritePlant } from '@/api/plants'
 import type { PlantListParams, PlantSummary } from '@/types/plant'
 
 const CYCLE_OPTIONS = [
+  { value: 'perennial', label: 'Perennial' },
   { value: 'annual', label: 'Annual' },
   { value: 'biennial', label: 'Biennial' },
-  { value: 'perennial', label: 'Perennial' },
-  { value: 'shrub', label: 'Shrub' },
-  { value: 'tree', label: 'Tree' },
-  { value: 'herb', label: 'Herb' },
-  { value: 'vegetable', label: 'Vegetable' },
-  { value: 'fruit', label: 'Fruit' },
-  { value: 'bulb', label: 'Bulb' },
-  { value: 'other', label: 'Other' },
 ]
 
 const WATERING_OPTIONS = [
@@ -52,12 +45,12 @@ function hasRealImage(plant: PlantSummary): boolean {
 }
 
 function PlantCard({ plant }: { plant: PlantSummary }) {
-  const navigate = useNavigate()
   const favoriteMutation = useFavoritePlant()
   const unfavoriteMutation = useUnfavoritePlant()
   const [imgError, setImgError] = useState(false)
 
   function handleFavoriteClick(e: React.MouseEvent) {
+    e.preventDefault()
     e.stopPropagation()
     if (plant.is_favorite) {
       unfavoriteMutation.mutate(plant.id)
@@ -67,99 +60,127 @@ function PlantCard({ plant }: { plant: PlantSummary }) {
   }
 
   return (
-    <Card
-      className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md"
-      onClick={() => navigate(`/plants/${plant.id}`)}
-    >
-      {/* Image with heart overlay */}
-      <div className="relative">
-        {hasRealImage(plant) && !imgError ? (
-          <img
-            src={`/api/v1/plants/${plant.id}/image`}
-            alt={plant.common_name}
-            className="h-40 w-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <PlantPlaceholder />
-        )}
-        <button
-          onClick={handleFavoriteClick}
-          className="absolute right-2 top-2 rounded-full bg-background/80 p-1.5 backdrop-blur-sm transition-colors hover:bg-background"
-        >
-          <Heart
-            className={`h-4 w-4 ${plant.is_favorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
-          />
-        </button>
-      </div>
-
-      <CardContent className="p-4">
-        <p className="truncate font-medium text-foreground">{plant.common_name}</p>
-        {plant.scientific_name && (
-          <p className="truncate text-sm italic text-muted-foreground">
-            {plant.scientific_name}
-            {plant.cultivar_name && (
-              <span className="not-italic text-foreground/60"> '{plant.cultivar_name}'</span>
-            )}
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {plant.plant_type && (
-            <Badge variant="secondary" className="text-xs">{plant.plant_type}</Badge>
+    <Link to={`/plants/${plant.id}`} className="block">
+      <Card className="cursor-pointer overflow-hidden transition-shadow hover:shadow-md">
+        {/* Image with heart overlay */}
+        <div className="relative">
+          {hasRealImage(plant) && !imgError ? (
+            <img
+              src={`/api/v1/plants/${plant.id}/image`}
+              alt={plant.common_name}
+              className="h-40 w-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <PlantPlaceholder />
           )}
-          {plant.water_needs && (
-            <Badge variant="outline" className="text-xs">{plant.water_needs}</Badge>
-          )}
+          <button
+            onClick={handleFavoriteClick}
+            className="absolute right-2 top-2 rounded-full bg-background/80 p-1.5 backdrop-blur-sm transition-colors hover:bg-background"
+          >
+            <Heart
+              className={`h-4 w-4 ${plant.is_favorite ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
+            />
+          </button>
         </div>
-      </CardContent>
-    </Card>
+
+        <CardContent className="p-4">
+          <p className="truncate font-medium text-foreground">{plant.common_name}</p>
+          {plant.scientific_name && (
+            <p className="truncate text-sm italic text-muted-foreground">
+              {plant.scientific_name}
+              {plant.cultivar_name && (
+                <span className="not-italic text-foreground/60"> '{plant.cultivar_name}'</span>
+              )}
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {plant.plant_type && (
+              <Badge variant="secondary" className="text-xs">{plant.plant_type}</Badge>
+            )}
+            {plant.water_needs && (
+              <Badge variant="outline" className="text-xs">{plant.water_needs}</Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
 export function PlantsPage() {
-  const [inputValue, setInputValue] = useState('')
-  const [debouncedName, setDebouncedName] = useState('')
-  const [cycle, setCycle] = useState('all')
-  const [watering, setWatering] = useState('all')
-  const [sunlight, setSunlight] = useState('all')
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Read filters from URL
+  const nameFilter = searchParams.get('name') ?? ''
+  const cycle = searchParams.get('cycle') ?? 'all'
+  const watering = searchParams.get('watering') ?? 'all'
+  const sunlight = searchParams.get('sunlight') ?? 'all'
+  const favoritesOnly = searchParams.get('favorites') === 'true'
+  const edibleOnly = searchParams.get('edible') === 'true'
+  const page = parseInt(searchParams.get('page') ?? '1')
+
+  // Local input buffer for debounce
+  const [inputValue, setInputValue] = useState(nameFilter)
+
+  // Sync input value when URL name changes externally (e.g. back navigation)
+  useEffect(() => {
+    setInputValue(nameFilter)
+  }, [nameFilter])
+
+  const updateParams = useCallback((updates: Record<string, string | undefined>) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const [key, val] of Object.entries(updates)) {
+        if (val === undefined || val === '' || val === 'all' || val === 'false' || (key === 'page' && val === '1')) {
+          next.delete(key)
+        } else {
+          next.set(key, val)
+        }
+      }
+      return next
+    })
+  }, [setSearchParams])
 
   // Debounce search input ~400ms
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedName(inputValue)
-      setPage(1)
+      updateParams({ name: inputValue || undefined, page: '1' })
     }, 400)
     return () => clearTimeout(timer)
-  }, [inputValue])
+  }, [inputValue]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleCycleChange(val: string) {
-    setCycle(val)
-    setPage(1)
+    updateParams({ cycle: val, page: '1' })
   }
 
   function handleWateringChange(val: string) {
-    setWatering(val)
-    setPage(1)
+    updateParams({ watering: val, page: '1' })
   }
 
   function handleSunlightChange(val: string) {
-    setSunlight(val)
-    setPage(1)
+    updateParams({ sunlight: val, page: '1' })
   }
 
   function toggleFavorites() {
-    setFavoritesOnly((prev) => !prev)
-    setPage(1)
+    updateParams({ favorites: favoritesOnly ? undefined : 'true', page: '1' })
+  }
+
+  function toggleEdible() {
+    updateParams({ edible: edibleOnly ? undefined : 'true', page: '1' })
+  }
+
+  function setPage(newPage: number) {
+    updateParams({ page: String(newPage) })
   }
 
   const params: PlantListParams = {
-    name: debouncedName || undefined,
+    name: nameFilter || undefined,
     cycle: cycle !== 'all' ? cycle : undefined,
     watering: watering !== 'all' ? watering : undefined,
     sunlight: sunlight !== 'all' ? sunlight : undefined,
     favorites_only: favoritesOnly || undefined,
+    edible: edibleOnly || undefined,
     page,
     per_page: PER_PAGE,
   }
@@ -190,10 +211,10 @@ export function PlantsPage() {
 
         <Select value={cycle} onValueChange={handleCycleChange}>
           <SelectTrigger className="w-full sm:w-[150px]">
-            <SelectValue placeholder="Type" />
+            <SelectValue placeholder="Life cycle" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="all">All life cycles</SelectItem>
             {CYCLE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
@@ -231,6 +252,15 @@ export function PlantsPage() {
           title={favoritesOnly ? 'Show all plants' : 'Show favorites only'}
         >
           <Heart className={`h-4 w-4 ${favoritesOnly ? 'fill-current' : ''}`} />
+        </Button>
+
+        <Button
+          variant={edibleOnly ? 'default' : 'outline'}
+          size="icon"
+          onClick={toggleEdible}
+          title={edibleOnly ? 'Show all plants' : 'Show edible plants only'}
+        >
+          <Sprout className="h-4 w-4" />
         </Button>
       </div>
 
@@ -275,7 +305,7 @@ export function PlantsPage() {
                 variant="outline"
                 size="sm"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage(page - 1)}
               >
                 Previous
               </Button>
@@ -286,7 +316,7 @@ export function PlantsPage() {
                 variant="outline"
                 size="sm"
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage(page + 1)}
               >
                 Next
               </Button>

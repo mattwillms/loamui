@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { Plus, LayoutGrid, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,6 @@ import {
 import { useGardens, useCreateGarden } from '@/api/gardens'
 
 export function GardensPage() {
-  const navigate = useNavigate()
   const { data: gardens, isLoading } = useGardens()
   const createGarden = useCreateGarden()
   const [open, setOpen] = useState(false)
@@ -69,33 +68,31 @@ export function GardensPage() {
       {!isLoading && gardens && gardens.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {gardens.map((garden) => (
-            <Card
-              key={garden.id}
-              className="cursor-pointer transition-shadow hover:shadow-md"
-              onClick={() => navigate(`/gardens/${garden.id}`)}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-medium">{garden.name}</CardTitle>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {garden.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{garden.description}</p>
-                )}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {garden.sun_exposure && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                      {garden.sun_exposure}
-                    </span>
+            <Link key={garden.id} to={`/gardens/${garden.id}`} className="block">
+              <Card className="cursor-pointer transition-shadow hover:shadow-md">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">{garden.name}</CardTitle>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {garden.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{garden.description}</p>
                   )}
-                  {garden.square_footage && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {garden.square_footage} sq ft
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {garden.sun_exposure && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        {garden.sun_exposure}
+                      </span>
+                    )}
+                    {garden.square_footage && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {garden.square_footage} sq ft
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

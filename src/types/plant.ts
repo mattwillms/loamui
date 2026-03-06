@@ -128,6 +128,7 @@ export interface PlantListParams {
   sunlight?: string
   hardiness_zone?: string
   favorites_only?: boolean
+  edible?: boolean
   page?: number
   per_page?: number
 }

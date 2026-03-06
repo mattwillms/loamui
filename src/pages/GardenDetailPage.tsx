@@ -208,46 +208,45 @@ export function GardenDetailPage() {
         {!bedsLoading && beds && beds.length > 0 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {beds.map((bed) => (
-              <Card
-                key={bed.id}
-                className="cursor-pointer transition-shadow hover:shadow-md"
-                onClick={() => navigate(`/beds/${bed.id}`)}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-base font-medium">{bed.name}</CardTitle>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEditBedDialog(bed)
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {bed.notes && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">{bed.notes}</p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {bed.width_ft && bed.length_ft && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {bed.width_ft} × {bed.length_ft} ft
-                      </span>
+              <Link key={bed.id} to={`/beds/${bed.id}`} className="block">
+                <Card className="cursor-pointer transition-shadow hover:shadow-md">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base font-medium">{bed.name}</CardTitle>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          openEditBedDialog(bed)
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {bed.notes && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">{bed.notes}</p>
                     )}
-                    {bed.sun_exposure_override && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                        {bed.sun_exposure_override}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {bed.width_ft && bed.length_ft && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {bed.width_ft} × {bed.length_ft} ft
+                        </span>
+                      )}
+                      {bed.sun_exposure_override && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                          {bed.sun_exposure_override}
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}
