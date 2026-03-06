@@ -8,6 +8,23 @@ import { Card, CardContent } from '@/components/ui/card'
 import { usePlant, useCompanionRecommendations, useFavoritePlant, useUnfavoritePlant } from '@/api/plants'
 import type { CompanionEntry } from '@/types/plant'
 
+function BackToPlants() {
+  const navigate = useNavigate()
+  function handleBack() {
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/plants')
+    }
+  }
+  return (
+    <Button variant="ghost" size="sm" onClick={handleBack}>
+      <ArrowLeft className="mr-2 h-4 w-4" />
+      Back to plants
+    </Button>
+  )
+}
+
 function hasRealImage(imageUrl: string | null | undefined): boolean {
   if (!imageUrl) return false
   if (imageUrl.includes('sk3776-image-kwvuoab1')) return false
@@ -112,7 +129,6 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 export function PlantDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const plantId = id ? parseInt(id, 10) : NaN
 
   const { data: plant, isLoading, isError } = usePlant(plantId)
@@ -133,10 +149,7 @@ export function PlantDetailPage() {
   if (isNaN(plantId)) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to plants
-        </Button>
+        <BackToPlants />
         <p className="text-sm text-destructive">Invalid plant ID.</p>
       </div>
     )
@@ -153,10 +166,7 @@ export function PlantDetailPage() {
   if (isError || !plant) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to plants
-        </Button>
+        <BackToPlants />
         <p className="text-sm text-destructive">Plant not found.</p>
       </div>
     )
@@ -240,10 +250,7 @@ export function PlantDetailPage() {
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to plants
-      </Button>
+      <BackToPlants />
 
       {/* Hero image */}
       {hasRealImage(plant.image_url) && !heroImgError ? (

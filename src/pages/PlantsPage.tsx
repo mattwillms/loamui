@@ -122,11 +122,7 @@ export function PlantsPage() {
 
   // Local input buffer for debounce
   const [inputValue, setInputValue] = useState(nameFilter)
-
-  // Sync input value when URL name changes externally (e.g. back navigation)
-  useEffect(() => {
-    setInputValue(nameFilter)
-  }, [nameFilter])
+  const [isFirstRender, setIsFirstRender] = useState(true)
 
   const updateParams = useCallback((updates: Record<string, string | undefined>) => {
     setSearchParams((prev) => {
@@ -142,8 +138,12 @@ export function PlantsPage() {
     })
   }, [setSearchParams])
 
-  // Debounce search input ~400ms
+  // Debounce search input ~400ms — skip first render to preserve page on back nav
   useEffect(() => {
+    if (isFirstRender) {
+      setIsFirstRender(false)
+      return
+    }
     const timer = setTimeout(() => {
       updateParams({ name: inputValue || undefined, page: '1' })
     }, 400)
