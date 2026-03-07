@@ -87,10 +87,14 @@ export function GardenDetailPage() {
   const [lockedBeds, setLockedBeds] = useState<Set<number>>(new Set())
   const [lockedPlantings, setLockedPlantings] = useState<Set<number>>(new Set())
 
-  // Init lock state from DB
+  // Init lock state from DB + sync selectedBed
   useEffect(() => {
     if (beds) {
       setLockedBeds(new Set(beds.filter(b => b.is_locked).map(b => b.id)))
+      if (selectedBed) {
+        const updated = beds.find(b => b.id === selectedBed.id)
+        if (updated) setSelectedBed(updated)
+      }
     }
   }, [beds])
 

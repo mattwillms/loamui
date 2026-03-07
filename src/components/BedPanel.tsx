@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Lock, LockOpen, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -87,10 +88,12 @@ export function BedPanel({ bed, gardenId, onClose }: Props) {
     }
   }
 
-  return (
+  return createPortal(
+    <>
+    <div className="fixed inset-0 z-20" onClick={onClose} />
     <div
       className={`fixed right-0 bottom-0 z-30 flex w-80 flex-col bg-card border-l border-border shadow-xl transition-transform duration-300 ${visible ? 'translate-x-0' : 'translate-x-full'}`}
-      style={{ top: '64px' }}
+      style={{ top: '56px' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-4">
@@ -197,5 +200,7 @@ export function BedPanel({ bed, gardenId, onClose }: Props) {
         )}
       </div>
     </div>
+    </>,
+    document.body
   )
 }

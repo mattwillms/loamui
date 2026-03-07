@@ -212,6 +212,8 @@ function PlantMarker({
   onSelect,
   onDragEnd,
   onDragStart,
+  onPendingStart,
+  onPendingClear,
 }: {
   planting: GardenPlanting
   pixelsPerFoot: number
@@ -219,6 +221,8 @@ function PlantMarker({
   onSelect: () => void
   onDragEnd: (x: number, y: number) => void
   onDragStart: () => void
+  onPendingStart: () => void
+  onPendingClear: () => void
 }) {
   if (planting.pos_x == null || planting.pos_y == null) return null
 
@@ -240,9 +244,10 @@ function PlantMarker({
       if (Math.abs(planting.pos_x - pendingPos.x) < 0.01 &&
           Math.abs(planting.pos_y - pendingPos.y) < 0.01) {
         setPendingPos(null)
+        onPendingClear()
       }
     }
-  }, [planting.pos_x, planting.pos_y, pendingPos])
+  }, [planting.pos_x, planting.pos_y, pendingPos, onPendingClear])
 
   const baseX = (pendingPos?.x ?? planting.pos_x!) * pixelsPerFoot
   const baseY = (pendingPos?.y ?? planting.pos_y!) * pixelsPerFoot
@@ -288,6 +293,7 @@ function PlantMarker({
       if (draggingRef.current) {
         const newX = (baseX + finalDragRef.current.x) / pixelsPerFoot
         const newY = (baseY + finalDragRef.current.y) / pixelsPerFoot
+        onPendingStart()
         onDragEnd(newX, newY)
         setPendingPos({ x: newX, y: newY })
       } else {
@@ -302,7 +308,7 @@ function PlantMarker({
     app.stage.on('pointermove', onMove)
     app.stage.on('pointerup', onUp)
     app.stage.on('pointerupoutside', onUp)
-  }, [app, locked, baseX, baseY, pixelsPerFoot, onDragEnd, onDragStart, onSelect])
+  }, [app, locked, baseX, baseY, pixelsPerFoot, onDragEnd, onDragStart, onPendingStart, onSelect])
 
   return (
     <pixiContainer
@@ -448,6 +454,7 @@ function StageContent({
 }: Omit<GardenCanvasProps, 'garden'> & { stageWidth: number; stageHeight: number; pixelsPerFoot: number }) {
   const [drawVertices, setDrawVertices] = useState<Array<{x: number, y: number}>>([])
   const [draggingPlantingId, setDraggingPlantingId] = useState<number | null>(null)
+  const [pendingPlantingIds, setPendingPlantingIds] = useState<Set<number>>(new Set())
 
   function handleVertexAdd(x: number, y: number) {
     setDrawVertices(prev => [...prev, { x, y }])
@@ -491,12 +498,13 @@ function StageContent({
         />
       ))}
 
-      {/* Footprints — hidden for currently dragged planting */}
-      {plantings.map(p =>
-        p.id === draggingPlantingId ? null : (
+      {/* Footprints — hidden during drag and pending position update */}
+      {plantings
+        .filter(p => p.id !== draggingPlantingId && !pendingPlantingIds.has(p.id))
+        .map(p => (
           <PlantFootprint key={`fp-${p.id}`} planting={p} pixelsPerFoot={pixelsPerFoot} />
-        )
-      )}
+        ))
+      }
 
       {/* Plant markers */}
       {plantings.map(p => (
@@ -511,6 +519,12 @@ function StageContent({
             onPlantingDragEnd(p.id, x, y)
           }}
           onDragStart={() => setDraggingPlantingId(p.id)}
+          onPendingStart={() => setPendingPlantingIds(prev => new Set(prev).add(p.id))}
+          onPendingClear={() => setPendingPlantingIds(prev => {
+            const next = new Set(prev)
+            next.delete(p.id)
+            return next
+          })}
         />
       ))}
 
