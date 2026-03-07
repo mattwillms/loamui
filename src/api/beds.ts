@@ -49,6 +49,19 @@ export function useUpdateBed(id: number) {
   })
 }
 
+export function useDeleteBed(gardenId: number) {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, number>({
+    mutationFn: async (bedId) => {
+      await apiClient.delete(`/beds/${bedId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'beds'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+    },
+  })
+}
+
 export function useUpdateBedById(gardenId: number) {
   const queryClient = useQueryClient()
   return useMutation<Bed, Error, { bedId: number; data: BedUpdate }>({

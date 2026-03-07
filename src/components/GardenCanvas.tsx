@@ -23,11 +23,17 @@ function getColor(plantType: string | null): number {
   return plantType ? (TYPE_COLORS[plantType.toLowerCase()] ?? DEFAULT_COLOR) : DEFAULT_COLOR
 }
 
+function hexToPixi(hex: string | null | undefined): number | null {
+  if (!hex) return null
+  return parseInt(hex.replace('#', ''), 16)
+}
+
 interface GardenCanvasProps {
   garden: Garden
   beds: Bed[]
   plantings: GardenPlanting[]
   onPlantingSelect: (planting: GardenPlanting) => void
+  onBedSelect: (bed: Bed) => void
   onCanvasClick: (x: number, y: number) => void
   drawMode: boolean
   onBedDrawn: (boundary: Array<{x: number, y: number}>) => void
@@ -62,11 +68,13 @@ function BedPolygon({
   pixelsPerFoot,
   locked,
   onDragEnd,
+  onSelect,
 }: {
   bed: Bed
   pixelsPerFoot: number
   locked: boolean
   onDragEnd: (dx: number, dy: number) => void
+  onSelect: () => void
 }) {
   const boundary = bed.boundary
   if (!boundary || boundary.length < 3) return null
@@ -79,9 +87,10 @@ function BedPolygon({
     g.clear()
     const pts = boundary.map(v => ({ x: v.x * pixelsPerFoot, y: v.y * pixelsPerFoot }))
     const flat = pts.flatMap(p => [p.x, p.y])
-    g.poly(flat).fill({ color: 0xC4956A, alpha: 0.5 })
+    const fillColor = hexToPixi(bed.color) ?? 0xC4956A
+    g.poly(flat).fill({ color: fillColor, alpha: 0.5 })
     g.poly(flat).stroke({ color: locked ? 0x666666 : 0x8B6347, width: 2 })
-  }, [boundary, pixelsPerFoot, locked])
+  }, [boundary, pixelsPerFoot, locked, bed.color])
 
   // Center label in bounding box
   const xs = boundary.map(v => v.x * pixelsPerFoot)
@@ -108,18 +117,20 @@ function BedPolygon({
   const handlePointerUp = useCallback(() => {
     if (draggingRef.current) {
       onDragEnd(dragOffset.x / pixelsPerFoot, dragOffset.y / pixelsPerFoot)
+    } else {
+      onSelect()
     }
     dragStartRef.current = null
     draggingRef.current = false
     setDragOffset({ x: 0, y: 0 })
-  }, [dragOffset, pixelsPerFoot, onDragEnd])
+  }, [dragOffset, pixelsPerFoot, onDragEnd, onSelect])
 
   return (
     <pixiContainer
       x={dragOffset.x}
       y={dragOffset.y}
       eventMode="static"
-      cursor={locked ? 'default' : 'grab'}
+      cursor={locked ? 'pointer' : 'grab'}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -171,19 +182,17 @@ function PlantMarker({
   locked,
   onSelect,
   onDragEnd,
-  justSelectedRef,
 }: {
   planting: GardenPlanting
   pixelsPerFoot: number
   locked: boolean
   onSelect: () => void
   onDragEnd: (x: number, y: number) => void
-  justSelectedRef: React.MutableRefObject<boolean>
 }) {
   if (planting.pos_x == null || planting.pos_y == null) return null
 
   const [hovered, setHovered] = useState(false)
-  const color = getColor(planting.plant_type)
+  const color = hexToPixi(planting.color) ?? getColor(planting.plant_type)
   const sx = planting.pos_x * pixelsPerFoot
   const sy = planting.pos_y * pixelsPerFoot
   const label = (planting.common_name ?? '?').split(' ')[0]
@@ -196,14 +205,19 @@ function PlantMarker({
     g.clear()
     g.circle(0, 0, 10).fill(color)
     g.circle(0, 0, 10).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2 : 1.5 })
+    // Lock icon overlay
+    if (locked) {
+      g.roundRect(-3, -1, 6, 5, 1).fill(0x666666)
+      g.moveTo(-2, -1).lineTo(-2, -3).bezierCurveTo(-2, -5, 2, -5, 2, -3).lineTo(2, -1)
+        .stroke({ color: 0x666666, width: 1.2 })
+    }
   }, [color, locked])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
-    justSelectedRef.current = true
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
-  }, [justSelectedRef])
+  }, [])
 
   const handlePointerMove = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     if (!dragStartRef.current || locked) return
@@ -329,23 +343,17 @@ function CanvasClickArea({
   height,
   pixelsPerFoot,
   onClick,
-  justSelectedRef,
 }: {
   width: number
   height: number
   pixelsPerFoot: number
   onClick: (x: number, y: number) => void
-  justSelectedRef: React.MutableRefObject<boolean>
 }) {
   const handleClick = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
-    if (justSelectedRef.current) {
-      justSelectedRef.current = false
-      return
-    }
     const x = e.global.x / pixelsPerFoot
     const y = e.global.y / pixelsPerFoot
     onClick(x, y)
-  }, [pixelsPerFoot, onClick, justSelectedRef])
+  }, [pixelsPerFoot, onClick])
 
   return (
     <pixiGraphics
@@ -366,6 +374,7 @@ function StageContent({
   beds,
   plantings,
   onPlantingSelect,
+  onBedSelect,
   onCanvasClick,
   drawMode,
   onBedDrawn,
@@ -378,7 +387,6 @@ function StageContent({
   pixelsPerFoot,
 }: Omit<GardenCanvasProps, 'garden'> & { stageWidth: number; stageHeight: number; pixelsPerFoot: number }) {
   const [drawVertices, setDrawVertices] = useState<Array<{x: number, y: number}>>([])
-  const justSelectedRef = useRef(false)
 
   function handleVertexAdd(x: number, y: number) {
     setDrawVertices(prev => [...prev, { x, y }])
@@ -400,6 +408,16 @@ function StageContent({
     <>
       <BackgroundGrid width={stageWidth} height={stageHeight} pixelsPerFoot={pixelsPerFoot} />
 
+      {/* Click area FIRST so it's underneath everything else */}
+      {!drawMode && (
+        <CanvasClickArea
+          width={stageWidth}
+          height={stageHeight}
+          pixelsPerFoot={pixelsPerFoot}
+          onClick={onCanvasClick}
+        />
+      )}
+
       {/* Beds */}
       {beds.map(bed => (
         <BedPolygon
@@ -408,6 +426,7 @@ function StageContent({
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedBeds.has(bed.id)}
           onDragEnd={(dx, dy) => onBedDragEnd(bed.id, dx, dy)}
+          onSelect={() => onBedSelect(bed)}
         />
       ))}
 
@@ -425,29 +444,32 @@ function StageContent({
           locked={lockedPlantings.has(p.id)}
           onSelect={() => onPlantingSelect(p)}
           onDragEnd={(x, y) => onPlantingDragEnd(p.id, x, y)}
-          justSelectedRef={justSelectedRef}
         />
       ))}
 
-      {/* Click area or draw mode */}
-      {drawMode ? (
+      {/* Draw mode overlay on top */}
+      {drawMode && (
         <DrawOverlay
           vertices={drawVertices}
           pixelsPerFoot={pixelsPerFoot}
           onVertexAdd={handleVertexAdd}
           onClose={handleDrawClose}
         />
-      ) : (
-        <CanvasClickArea
-          width={stageWidth}
-          height={stageHeight}
-          pixelsPerFoot={pixelsPerFoot}
-          onClick={onCanvasClick}
-          justSelectedRef={justSelectedRef}
-        />
       )}
     </>
   )
+}
+
+// ── Resize bridge ────────────────────────────────────────────────────────────
+
+function ResizeBridge({ width, height }: { width: number; height: number }) {
+  const { app } = useApplication()
+  useEffect(() => {
+    if (app?.renderer) {
+      app.renderer.resize(width, height)
+    }
+  }, [app, width, height])
+  return null
 }
 
 // ── Exported component ───────────────────────────────────────────────────────
@@ -460,31 +482,46 @@ export function GardenCanvas(props: GardenCanvasProps) {
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+    let timer: ReturnType<typeof setTimeout>
     const ro = new ResizeObserver(entries => {
       const w = entries[0]?.contentRect.width
-      if (w && w > 0) setContainerWidth(w)
+      if (w && w > 0) {
+        clearTimeout(timer)
+        timer = setTimeout(() => setContainerWidth(w), 50)
+      }
     })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      clearTimeout(timer)
+      ro.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (el) {
+      const w = el.getBoundingClientRect().width
+      if (w > 0) setContainerWidth(w)
+    }
   }, [])
 
   const gardenW = garden.canvas_width_ft ?? 1
   const gardenH = garden.canvas_height_ft ?? 1
   const pixelsPerFoot = containerWidth / gardenW
   const stageWidth = containerWidth
-  const stageHeight = gardenH * pixelsPerFoot
+  const stageHeight = Math.round(gardenH * pixelsPerFoot)
 
   if (gardenW <= 0 || gardenH <= 0) return null
 
   return (
     <div ref={containerRef} className="w-full rounded-lg border border-border overflow-hidden">
       <Application
-        key={`${stageWidth}x${stageHeight}`}
         width={stageWidth}
         height={stageHeight}
         background={0xF5EFE6}
         antialias
       >
+        <ResizeBridge width={stageWidth} height={stageHeight} />
         <StageContent
           {...props}
           stageWidth={stageWidth}

@@ -9,6 +9,7 @@ export interface Bed {
   notes: string | null
   boundary: Array<{x: number, y: number}> | null
   is_locked: boolean
+  color: string | null
   created_at: string
   updated_at: string
 }
@@ -22,6 +23,7 @@ export interface BedCreate {
   notes?: string
   boundary?: Array<{x: number, y: number}> | null
   is_locked?: boolean
+  color?: string
 }
 
 export interface BedUpdate {
@@ -33,4 +35,5 @@ export interface BedUpdate {
   notes?: string
   boundary?: Array<{x: number, y: number}> | null
   is_locked?: boolean
+  color?: string
 }

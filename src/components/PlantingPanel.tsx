@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, ChevronDown, ChevronRight, LockOpen, Trash2, Leaf } from 'lucide-react'
+import { X, ChevronDown, ChevronRight, Lock, LockOpen, Trash2, Leaf } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -48,6 +48,12 @@ const TREATMENT_TYPES = [
   { value: 'fungicide', label: 'Fungicide' },
   { value: 'fertilizer', label: 'Fertilizer' },
   { value: 'amendment', label: 'Amendment' },
+]
+
+const PLANTING_COLORS = [
+  '#86efac', '#6ee7b7', '#bef264', '#93c5fd',
+  '#c4b5fd', '#fdba74', '#f9a8d4', '#fca5a5',
+  '#e9c46a', '#f4a261', '#e76f51', '#cbd5e1',
 ]
 
 function todayISO() {
@@ -184,11 +190,19 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
     }
   }
 
-  async function handleUnlock() {
+  async function handleToggleLock() {
     try {
-      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { is_locked: false } })
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { is_locked: !planting.is_locked } })
     } catch {
-      toast.error('Failed to unlock planting.')
+      toast.error('Failed to toggle lock.')
+    }
+  }
+
+  async function handleColorChange(color: string | null) {
+    try {
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { color } })
+    } catch {
+      toast.error('Failed to update color.')
     }
   }
 
@@ -211,7 +225,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
   return (
     <div
       className={`fixed right-0 bottom-0 z-30 flex w-80 flex-col bg-card border-l border-border shadow-xl transition-transform duration-300 ${visible ? 'translate-x-0' : 'translate-x-full'}`}
-      style={{ top: '56px' }}
+      style={{ top: '64px' }}
     >
       {/* Header */}
       <div className="flex items-start gap-3 border-b border-border p-4">
@@ -286,6 +300,25 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
               onBlur={handleNotesSave}
               placeholder="Add notes…"
             />
+          </div>
+        </div>
+
+        {/* Color */}
+        <div className="border-b border-border p-4">
+          <Label className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Marker Color
+          </Label>
+          <div className="flex flex-wrap gap-1.5">
+            {PLANTING_COLORS.map((c) => (
+              <button
+                key={c}
+                className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                  planting.color === c ? 'border-foreground scale-110' : 'border-transparent'
+                }`}
+                style={{ backgroundColor: c }}
+                onClick={() => handleColorChange(planting.color === c ? null : c)}
+              />
+            ))}
           </div>
         </div>
 
@@ -481,18 +514,19 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
 
       {/* Footer */}
       <div className="flex flex-col gap-2 border-t border-border p-4">
-        {planting.is_locked && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-1.5"
-            onClick={handleUnlock}
-            disabled={updatePlanting.isPending}
-          >
-            <LockOpen className="h-3.5 w-3.5" />
-            Unlock position
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5"
+          onClick={handleToggleLock}
+          disabled={updatePlanting.isPending}
+        >
+          {planting.is_locked ? (
+            <><LockOpen className="h-3.5 w-3.5" /> Unlock position</>
+          ) : (
+            <><Lock className="h-3.5 w-3.5" /> Lock position</>
+          )}
+        </Button>
         <Button
           variant={confirmRemove ? 'destructive' : 'outline'}
           size="sm"

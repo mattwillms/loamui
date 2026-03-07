@@ -20,6 +20,7 @@ import { useGardenSoil } from '@/api/soil'
 import { useCreateGardenPlanting, usePlanting, useUpdatePlantingById } from '@/api/plantings'
 import { PlantPicker } from '@/components/PlantPicker'
 import { PlantingPanel } from '@/components/PlantingPanel'
+import { BedPanel } from '@/components/BedPanel'
 import { pointInPolygon, rectBoundary } from '@/lib/geometry'
 import type { Bed } from '@/types/bed'
 import type { GardenPlanting } from '@/types/garden'
@@ -74,6 +75,7 @@ export function GardenDetailPage() {
 
   // Canvas state
   const [selectedPlanting, setSelectedPlanting] = useState<GardenPlanting | null>(null)
+  const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingPosition, setPendingPosition] = useState<{x: number, y: number} | null>(null)
   const [drawMode, setDrawMode] = useState(false)
@@ -112,6 +114,33 @@ export function GardenDetailPage() {
           || p.pos_y > garden!.canvas_height_ft!
       })
     : []
+  const outOfBoundsCount = outOfBoundsPlantings.length
+
+  function handleAutoResize() {
+    let maxX = garden?.canvas_width_ft ?? 0
+    let maxY = garden?.canvas_height_ft ?? 0
+
+    for (const p of gardenPlantings) {
+      if (p.pos_x != null) maxX = Math.max(maxX, p.pos_x + (p.spacing_inches ?? 12) / 24)
+      if (p.pos_y != null) maxY = Math.max(maxY, p.pos_y + (p.spacing_inches ?? 12) / 24)
+    }
+
+    for (const bed of (beds ?? [])) {
+      if (bed.boundary) {
+        for (const pt of bed.boundary) {
+          maxX = Math.max(maxX, pt.x)
+          maxY = Math.max(maxY, pt.y)
+        }
+      }
+    }
+
+    const newW = Math.ceil(maxX)
+    const newH = Math.ceil(maxY)
+    updateGarden.mutate({
+      canvas_width_ft: newW,
+      canvas_height_ft: newH,
+    })
+  }
 
   function openEditDialog() {
     if (!garden) return
@@ -189,6 +218,17 @@ export function GardenDetailPage() {
       canvas_height_ft: editCanvasHeight !== '' ? parseFloat(editCanvasHeight) : null,
     })
     setEditDialogOpen(false)
+  }
+
+  // Panel selection with mutual exclusion
+  function handlePlantingSelect(planting: GardenPlanting) {
+    setSelectedPlanting(planting)
+    setSelectedBed(null)
+  }
+
+  function handleBedSelect(bed: Bed) {
+    setSelectedBed(bed)
+    setSelectedPlanting(null)
   }
 
   // Canvas handlers
@@ -331,13 +371,21 @@ export function GardenDetailPage() {
       </div>
 
       {/* Out-of-bounds warning */}
-      {outOfBoundsPlantings.length > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            {outOfBoundsPlantings.length} planting{outOfBoundsPlantings.length > 1 ? 's are' : ' is'} outside the canvas bounds.
-            Resize the garden or drag {outOfBoundsPlantings.length > 1 ? 'them' : 'it'} back inside.
-          </p>
+      {outOfBoundsCount > 0 && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">
+            {outOfBoundsCount} planting{outOfBoundsCount > 1 ? 's are' : ' is'} outside the garden boundary.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-xs"
+            onClick={handleAutoResize}
+            disabled={updateGarden.isPending}
+          >
+            Auto-resize
+          </Button>
         </div>
       )}
 
@@ -392,7 +440,8 @@ export function GardenDetailPage() {
                 garden={garden}
                 beds={beds ?? []}
                 plantings={gardenPlantings}
-                onPlantingSelect={setSelectedPlanting}
+                onPlantingSelect={handlePlantingSelect}
+                onBedSelect={handleBedSelect}
                 onCanvasClick={handleCanvasClick}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
@@ -538,6 +587,15 @@ export function GardenDetailPage() {
           gardenId={gardenId}
           bedName={selectedPlanting.bed_name}
           onClose={() => setSelectedPlanting(null)}
+        />
+      )}
+
+      {/* BedPanel */}
+      {selectedBed && (
+        <BedPanel
+          bed={selectedBed}
+          gardenId={gardenId}
+          onClose={() => setSelectedBed(null)}
         />
       )}
 

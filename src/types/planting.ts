@@ -24,6 +24,7 @@ export interface Planting {
   pos_x: number | null
   pos_y: number | null
   is_locked: boolean
+  color: string | null
   created_at: string
   updated_at: string
 }
@@ -58,5 +59,6 @@ export interface PlantingCreate {
   pos_x?: number | null
   pos_y?: number | null
   is_locked?: boolean
+  color?: string
   quantity?: number
 }
