@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { Pencil, Plus, ChevronRight, Trash2 } from 'lucide-react'
+import { Pencil, Plus, ChevronRight, Trash2, PenLine } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,10 +13,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useGarden, useDeleteGarden, useUpdateGarden } from '@/api/gardens'
+import { useGarden, useDeleteGarden, useUpdateGarden, useGardenPlantings } from '@/api/gardens'
 import { useBeds, useCreateBed, useUpdateBed } from '@/api/beds'
 import { useGardenSoil } from '@/api/soil'
+import { useCreateGardenPlanting, usePlanting } from '@/api/plantings'
+import { PlantPicker } from '@/components/PlantPicker'
+import { PlantingPanel } from '@/components/PlantingPanel'
+import { pointInPolygon } from '@/lib/geometry'
 import type { Bed } from '@/types/bed'
+import type { GardenPlanting } from '@/types/garden'
+import type { PlantSummary } from '@/types/plant'
+
+const GardenCanvas = lazy(() => import('@/components/GardenCanvas'))
 
 export function GardenDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -24,9 +33,11 @@ export function GardenDetailPage() {
 
   const { data: garden, isLoading: gardenLoading } = useGarden(gardenId)
   const { data: beds, isLoading: bedsLoading } = useBeds(gardenId)
+  const { data: gardenPlantings = [] } = useGardenPlantings(gardenId)
   const createBed = useCreateBed(gardenId)
   const deleteGarden = useDeleteGarden(gardenId)
   const updateGarden = useUpdateGarden(gardenId)
+  const createGardenPlanting = useCreateGardenPlanting(gardenId)
 
   const hasLocation = !!(garden?.latitude || garden?.longitude)
   const { data: soil, isLoading: soilLoading, isError: soilError } = useGardenSoil(gardenId, hasLocation)
@@ -39,6 +50,8 @@ export function GardenDetailPage() {
   const [editDescription, setEditDescription] = useState('')
   const [editLat, setEditLat] = useState('')
   const [editLon, setEditLon] = useState('')
+  const [editCanvasWidth, setEditCanvasWidth] = useState('')
+  const [editCanvasHeight, setEditCanvasHeight] = useState('')
 
   // Create bed form
   const [bedName, setBedName] = useState('')
@@ -55,12 +68,28 @@ export function GardenDetailPage() {
   const [editBedLength, setEditBedLength] = useState('')
   const updateBed = useUpdateBed(editingBed?.id ?? 0)
 
+  // Canvas state
+  const [selectedPlanting, setSelectedPlanting] = useState<GardenPlanting | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pendingPosition, setPendingPosition] = useState<{x: number, y: number} | null>(null)
+  const [drawMode, setDrawMode] = useState(false)
+  const [pendingBedBoundary, setPendingBedBoundary] = useState<Array<{x: number, y: number}> | null>(null)
+  const [newBedNameDialogOpen, setNewBedNameDialogOpen] = useState(false)
+  const [newBedName, setNewBedName] = useState('')
+
+  // Fetch full planting for PlantingPanel
+  const { data: fullPlanting } = usePlanting(selectedPlanting?.id ?? 0)
+
+  const hasCanvas = !!(garden?.canvas_width_ft && garden?.canvas_height_ft)
+
   function openEditDialog() {
     if (!garden) return
     setEditName(garden.name)
     setEditDescription(garden.description ?? '')
     setEditLat(garden.latitude !== null ? String(garden.latitude) : '')
     setEditLon(garden.longitude !== null ? String(garden.longitude) : '')
+    setEditCanvasWidth(garden.canvas_width_ft !== null ? String(garden.canvas_width_ft) : '')
+    setEditCanvasHeight(garden.canvas_height_ft !== null ? String(garden.canvas_height_ft) : '')
     setEditDialogOpen(true)
   }
 
@@ -113,8 +142,60 @@ export function GardenDetailPage() {
       description: editDescription.trim() || undefined,
       latitude: editLat !== '' ? parseFloat(editLat) : undefined,
       longitude: editLon !== '' ? parseFloat(editLon) : undefined,
+      canvas_width_ft: editCanvasWidth !== '' ? parseFloat(editCanvasWidth) : null,
+      canvas_height_ft: editCanvasHeight !== '' ? parseFloat(editCanvasHeight) : null,
     })
     setEditDialogOpen(false)
+  }
+
+  // Canvas handlers
+  function handleCanvasClick(x: number, y: number) {
+    setPendingPosition({ x, y })
+    setPickerOpen(true)
+  }
+
+  async function handlePlantSelect(plant: PlantSummary) {
+    if (!pendingPosition || !beds) return
+    setPickerOpen(false)
+
+    const containingBed = beds.find(bed =>
+      bed.boundary && pointInPolygon(pendingPosition, bed.boundary)
+    ) ?? beds[0] ?? null
+
+    if (!containingBed) {
+      toast.error('Add a bed to the garden first.')
+      return
+    }
+
+    try {
+      await createGardenPlanting.mutateAsync({
+        bed_id: containingBed.id,
+        plant_id: plant.id,
+        pos_x: pendingPosition.x,
+        pos_y: pendingPosition.y,
+        quantity: 1,
+      })
+    } catch {
+      toast.error('Failed to add planting.')
+    }
+    setPendingPosition(null)
+  }
+
+  function handleBedDrawn(boundary: Array<{x: number, y: number}>) {
+    setDrawMode(false)
+    setPendingBedBoundary(boundary)
+    setNewBedName('')
+    setNewBedNameDialogOpen(true)
+  }
+
+  async function handleNewBedConfirm() {
+    if (!newBedName.trim() || !pendingBedBoundary) return
+    await createBed.mutateAsync({
+      name: newBedName.trim(),
+      boundary: pendingBedBoundary,
+    })
+    setNewBedNameDialogOpen(false)
+    setPendingBedBoundary(null)
   }
 
   if (gardenLoading) {
@@ -183,6 +264,67 @@ export function GardenDetailPage() {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Garden Designer */}
+      <div>
+        <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          Garden Designer
+        </h2>
+
+        {!hasCanvas && (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                Set garden dimensions to enable the designer.
+              </p>
+              <Button className="mt-4" variant="outline" onClick={openEditDialog}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit garden
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {hasCanvas && (
+          <>
+            {/* Toolbar */}
+            <div className="mb-3 flex items-center gap-2">
+              <Button
+                variant={drawMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDrawMode(!drawMode)}
+              >
+                <PenLine className="mr-2 h-4 w-4" />
+                Draw Bed
+              </Button>
+              {drawMode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDrawMode(false)}
+                >
+                  Cancel
+                </Button>
+              )}
+              <span className="ml-auto text-xs text-muted-foreground">
+                {garden.canvas_width_ft} × {garden.canvas_height_ft} ft
+              </span>
+            </div>
+
+            <Suspense fallback={<p className="text-sm text-muted-foreground">Loading canvas…</p>}>
+              <GardenCanvas
+                garden={garden}
+                beds={beds ?? []}
+                plantings={gardenPlantings}
+                onPlantingSelect={setSelectedPlanting}
+                onCanvasClick={handleCanvasClick}
+                drawMode={drawMode}
+                onBedDrawn={handleBedDrawn}
+              />
+            </Suspense>
+          </>
+        )}
       </div>
 
       {/* Beds */}
@@ -304,6 +446,60 @@ export function GardenDetailPage() {
         )}
       </div>
 
+      {/* PlantingPanel */}
+      {selectedPlanting && fullPlanting && (
+        <PlantingPanel
+          planting={fullPlanting}
+          bedId={selectedPlanting.bed_id}
+          gardenId={gardenId}
+          bedName={selectedPlanting.bed_name}
+          onClose={() => setSelectedPlanting(null)}
+        />
+      )}
+
+      {/* Plant picker */}
+      <PlantPicker
+        open={pickerOpen}
+        onClose={() => {
+          setPickerOpen(false)
+          setPendingPosition(null)
+        }}
+        onSelect={handlePlantSelect}
+      />
+
+      {/* New bed name dialog (after drawing) */}
+      <Dialog open={newBedNameDialogOpen} onOpenChange={setNewBedNameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Name your new bed</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleNewBedConfirm() }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-bed-name">Name</Label>
+              <Input
+                id="new-bed-name"
+                placeholder="e.g. Herb spiral"
+                value={newBedName}
+                onChange={(e) => setNewBedName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setNewBedNameDialogOpen(false)
+                setPendingBedBoundary(null)
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createBed.isPending}>
+                {createBed.isPending ? 'Creating…' : 'Create bed'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit garden dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
@@ -327,6 +523,32 @@ export function GardenDetailPage() {
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-canvas-w">Garden width (ft)</Label>
+                <Input
+                  id="edit-canvas-w"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 20"
+                  value={editCanvasWidth}
+                  onChange={(e) => setEditCanvasWidth(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-canvas-h">Garden height (ft)</Label>
+                <Input
+                  id="edit-canvas-h"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 30"
+                  value={editCanvasHeight}
+                  onChange={(e) => setEditCanvasHeight(e.target.value)}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

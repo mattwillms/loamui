@@ -51,6 +51,31 @@ export function useDeletePlanting() {
   })
 }
 
+export function usePlanting(plantingId: number) {
+  return useQuery<Planting>({
+    queryKey: ['plantings', plantingId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/plantings/${plantingId}`)
+      return response.data
+    },
+    enabled: plantingId > 0,
+  })
+}
+
+export function useCreateGardenPlanting(gardenId: number) {
+  const queryClient = useQueryClient()
+  return useMutation<Planting, Error, PlantingCreate>({
+    mutationFn: async (data) => {
+      const response = await apiClient.post('/plantings', data)
+      return response.data
+    },
+    onSuccess: (planting) => {
+      queryClient.invalidateQueries({ queryKey: ['beds', planting.bed_id, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+    },
+  })
+}
+
 export function useCreateWateringLog() {
   return useMutation({
     mutationFn: (data: WateringLogCreate) =>

@@ -7,6 +7,7 @@ export interface Bed {
   sun_exposure_override: string | null
   soil_amendments: string | null
   notes: string | null
+  boundary: Array<{x: number, y: number}> | null
   created_at: string
   updated_at: string
 }
@@ -18,6 +19,7 @@ export interface BedCreate {
   sun_exposure_override?: string
   soil_amendments?: string
   notes?: string
+  boundary?: Array<{x: number, y: number}> | null
 }
 
 export interface BedUpdate {
@@ -27,4 +29,5 @@ export interface BedUpdate {
   sun_exposure_override?: string
   soil_amendments?: string
   notes?: string
+  boundary?: Array<{x: number, y: number}> | null
 }

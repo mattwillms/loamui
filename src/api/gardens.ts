@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Garden, GardenCreate, GardenUpdate } from '@/types/garden'
+import type { Garden, GardenCreate, GardenUpdate, GardenPlanting } from '@/types/garden'
 import { apiClient } from './client'
 
 export function useGardens() {
@@ -58,5 +58,16 @@ export function useDeleteGarden(id: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gardens'] })
     },
+  })
+}
+
+export function useGardenPlantings(gardenId: number) {
+  return useQuery<GardenPlanting[]>({
+    queryKey: ['gardens', gardenId, 'plantings'],
+    queryFn: async () => {
+      const response = await apiClient.get(`/gardens/${gardenId}/plantings`)
+      return response.data
+    },
+    enabled: gardenId > 0,
   })
 }

@@ -21,6 +21,8 @@ export interface Planting {
   photos: string[] | null
   grid_x: number | null
   grid_y: number | null
+  pos_x: number | null
+  pos_y: number | null
   is_locked: boolean
   created_at: string
   updated_at: string
@@ -53,6 +55,8 @@ export interface PlantingCreate {
   plant_id: number
   grid_x?: number
   grid_y?: number
+  pos_x?: number | null
+  pos_y?: number | null
   is_locked?: boolean
   quantity?: number
 }
