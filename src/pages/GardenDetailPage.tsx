@@ -240,17 +240,13 @@ export function GardenDetailPage() {
 
   // Panel selection with mutual exclusion
   function handlePlantingSelect(planting: GardenPlanting) {
-    pendingSelectionRef.current = true
     setSelectedPlanting(planting)
     setSelectedBed(null)
-    setTimeout(() => { pendingSelectionRef.current = false }, 50)
   }
 
   function handleBedSelect(bed: Bed) {
-    pendingSelectionRef.current = true
     setSelectedBed(bed)
     setSelectedPlanting(null)
-    setTimeout(() => { pendingSelectionRef.current = false }, 50)
   }
 
   async function handlePlantSelect(plant: PlantSummary) {
@@ -493,6 +489,8 @@ export function GardenDetailPage() {
                 selectedPlantingId={selectedPlanting?.id}
                 selectedBedId={selectedBed?.id}
                 newPlantingId={newPlantingId}
+                onPlantingPointerDown={() => { pendingSelectionRef.current = true; setTimeout(() => { pendingSelectionRef.current = false }, 100) }}
+                onBedPointerDown={() => { pendingSelectionRef.current = true; setTimeout(() => { pendingSelectionRef.current = false }, 100) }}
               />
             </Suspense>
             </div>

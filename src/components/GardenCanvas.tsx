@@ -109,6 +109,8 @@ interface GardenCanvasProps {
   selectedBedId?: number | null
   newPlantingId?: number | null
   onDismiss?: () => void
+  onPlantingPointerDown?: () => void
+  onBedPointerDown?: () => void
 }
 
 // ── Canvas click area (dismiss panels) ──────────────────────────────────────
@@ -163,6 +165,7 @@ function BedPolygon({
   selected: boolean
   onDragEnd: (newBoundary: Array<{x: number, y: number}>) => void
   onSelect: () => void
+  onPointerDownNotify?: () => void
 }) {
   const boundary = bed.boundary
   if (!boundary || boundary.length < 3) return null
@@ -229,6 +232,7 @@ function BedPolygon({
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
+    onPointerDownNotify?.()
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
     finalDragRef.current = { x: 0, y: 0 }
@@ -272,7 +276,7 @@ function BedPolygon({
     app.stage.on('pointermove', onMove)
     app.stage.on('pointerup', onUp)
     app.stage.on('pointerupoutside', onUp)
-  }, [app, locked, boundary, pixelsPerFoot, onDragEnd, onSelect])
+  }, [app, locked, boundary, pixelsPerFoot, onDragEnd, onSelect, onPointerDownNotify])
 
   return (
     <pixiContainer
@@ -340,6 +344,7 @@ function PlantMarker({
   onDragStart,
   onPendingStart,
   onPendingClear,
+  onPointerDownNotify,
 }: {
   planting: GardenPlanting
   pixelsPerFoot: number
@@ -351,6 +356,7 @@ function PlantMarker({
   onDragStart: () => void
   onPendingStart: () => void
   onPendingClear: () => void
+  onPointerDownNotify?: () => void
 }) {
   if (planting.pos_x == null || planting.pos_y == null) return null
 
@@ -459,6 +465,7 @@ function PlantMarker({
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
+    onPointerDownNotify?.()
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
     finalDragRef.current = { x: 0, y: 0 }
@@ -499,7 +506,7 @@ function PlantMarker({
     app.stage.on('pointermove', onMove)
     app.stage.on('pointerup', onUp)
     app.stage.on('pointerupoutside', onUp)
-  }, [app, locked, baseX, baseY, pixelsPerFoot, onDragEnd, onDragStart, onPendingStart, onSelect])
+  }, [app, locked, baseX, baseY, pixelsPerFoot, onDragEnd, onDragStart, onPendingStart, onSelect, onPointerDownNotify])
 
   return (
     <pixiContainer
@@ -636,6 +643,8 @@ function StageContent({
   selectedBedId,
   newPlantingId,
   onDismiss,
+  onPlantingPointerDown,
+  onBedPointerDown,
   stageWidth,
   stageHeight,
   pixelsPerFoot,
@@ -675,6 +684,7 @@ function StageContent({
           selected={selectedBedId === bed.id}
           onDragEnd={(newBoundary) => onBedDragEnd(bed.id, newBoundary)}
           onSelect={() => onBedSelect(bed)}
+          onPointerDownNotify={onBedPointerDown}
         />
       ))}
 
@@ -707,6 +717,7 @@ function StageContent({
             next.delete(p.id)
             return next
           })}
+          onPointerDownNotify={onPlantingPointerDown}
         />
       ))}
 
