@@ -109,7 +109,14 @@ export function GardenDetailPage() {
       setLockedBeds(new Set(beds.filter(b => b.is_locked).map(b => b.id)))
       if (selectedBed) {
         const updated = beds.find(b => b.id === selectedBed.id)
-        if (updated) setSelectedBed(updated)
+        if (updated && (
+          updated.name !== selectedBed.name ||
+          updated.color !== selectedBed.color ||
+          updated.is_locked !== selectedBed.is_locked ||
+          updated.boundary !== selectedBed.boundary
+        )) {
+          setSelectedBed(updated)
+        }
       }
     }
   }, [beds])

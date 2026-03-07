@@ -158,6 +158,7 @@ function BedPolygon({
   selected,
   onDragEnd,
   onSelect,
+  onPointerDownNotify,
 }: {
   bed: Bed
   pixelsPerFoot: number
