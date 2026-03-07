@@ -210,16 +210,12 @@ function BedPolygon({
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
-    if (locked) {
-      onSelect()
-      return
-    }
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
     finalDragRef.current = { x: 0, y: 0 }
 
     const onMove = (ev: import('pixi.js').FederatedPointerEvent) => {
-      if (!dragStartRef.current) return
+      if (!dragStartRef.current || locked) return
       const dx = ev.global.x - dragStartRef.current.x
       const dy = ev.global.y - dragStartRef.current.y
       if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 4) return
