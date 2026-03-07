@@ -39,7 +39,7 @@ interface GardenCanvasProps {
   onBedDrawn: (boundary: Array<{x: number, y: number}>) => void
   lockedBeds: Set<number>
   lockedPlantings: Set<number>
-  onBedDragEnd: (bedId: number, dx: number, dy: number) => void
+  onBedDragEnd: (bedId: number, newBoundary: Array<{x: number, y: number}>) => void
   onPlantingDragEnd: (plantingId: number, x: number, y: number) => void
 }
 
@@ -73,7 +73,7 @@ function BedPolygon({
   bed: Bed
   pixelsPerFoot: number
   locked: boolean
-  onDragEnd: (dx: number, dy: number) => void
+  onDragEnd: (newBoundary: Array<{x: number, y: number}>) => void
   onSelect: () => void
 }) {
   const boundary = bed.boundary
@@ -85,16 +85,31 @@ function BedPolygon({
   const draggingRef = useRef(false)
   const finalDragRef = useRef({ x: 0, y: 0 })
 
+  // Pending boundary to prevent snap-back
+  const [pendingBoundary, setPendingBoundary] = useState<Array<{x: number, y: number}> | null>(null)
+
+  useEffect(() => {
+    if (pendingBoundary && bed.boundary) {
+      const close = pendingBoundary.every((pt, i) =>
+        Math.abs(pt.x - (bed.boundary![i]?.x ?? 0)) < 0.01 &&
+        Math.abs(pt.y - (bed.boundary![i]?.y ?? 0)) < 0.01
+      )
+      if (close) setPendingBoundary(null)
+    }
+  }, [bed.boundary, pendingBoundary])
+
+  const displayBoundary = pendingBoundary ?? boundary
+
   // Bounding box center + top
-  const xs = boundary.map(v => v.x * pixelsPerFoot)
-  const ys = boundary.map(v => v.y * pixelsPerFoot)
+  const xs = displayBoundary.map(v => v.x * pixelsPerFoot)
+  const ys = displayBoundary.map(v => v.y * pixelsPerFoot)
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2
   const minY = Math.min(...ys)
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    const pts = boundary.map(v => ({ x: v.x * pixelsPerFoot, y: v.y * pixelsPerFoot }))
+    const pts = displayBoundary.map(v => ({ x: v.x * pixelsPerFoot, y: v.y * pixelsPerFoot }))
     const flat = pts.flatMap(p => [p.x, p.y])
     const fillColor = hexToPixi(bed.color) ?? 0xC4956A
     g.poly(flat).fill({ color: fillColor, alpha: 0.5 })
@@ -113,12 +128,11 @@ function BedPolygon({
         .lineTo(lx + 3, ly - 3)
         .stroke({ color: 0xffffff, width: 1.5 })
     }
-  }, [boundary, pixelsPerFoot, locked, bed.color])
+  }, [displayBoundary, pixelsPerFoot, locked, bed.color])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
     if (locked) {
-      // Locked beds can still be selected on click
       onSelect()
       return
     }
@@ -142,20 +156,30 @@ function BedPolygon({
       app.stage.off('pointerupoutside', onUp)
 
       if (draggingRef.current) {
-        onDragEnd(finalDragRef.current.x / pixelsPerFoot, finalDragRef.current.y / pixelsPerFoot)
+        const dx = finalDragRef.current.x / pixelsPerFoot
+        const dy = finalDragRef.current.y / pixelsPerFoot
+        const newBoundary = boundary.map(v => ({
+          x: Math.round((v.x + dx) * 100) / 100,
+          y: Math.round((v.y + dy) * 100) / 100,
+        }))
+        setPendingBoundary(newBoundary)
+        setDragOffset({ x: 0, y: 0 })
+        onDragEnd(newBoundary)
       } else {
         onSelect()
+        dragStartRef.current = null
+        draggingRef.current = false
+        setDragOffset({ x: 0, y: 0 })
       }
 
       dragStartRef.current = null
       draggingRef.current = false
-      setDragOffset({ x: 0, y: 0 })
     }
 
     app.stage.on('pointermove', onMove)
     app.stage.on('pointerup', onUp)
     app.stage.on('pointerupoutside', onUp)
-  }, [app, locked, pixelsPerFoot, onDragEnd, onSelect])
+  }, [app, locked, boundary, pixelsPerFoot, onDragEnd, onSelect])
 
   return (
     <pixiContainer
@@ -493,7 +517,7 @@ function StageContent({
           bed={bed}
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedBeds.has(bed.id)}
-          onDragEnd={(dx, dy) => onBedDragEnd(bed.id, dx, dy)}
+          onDragEnd={(newBoundary) => onBedDragEnd(bed.id, newBoundary)}
           onSelect={() => onBedSelect(bed)}
         />
       ))}

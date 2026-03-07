@@ -286,15 +286,9 @@ export function GardenDetailPage() {
   }
 
   // Drag handlers
-  const handleBedDragEnd = useCallback((bedId: number, dx: number, dy: number) => {
-    const bed = beds?.find(b => b.id === bedId)
-    if (!bed?.boundary) return
-    const newBoundary = bed.boundary.map(v => ({
-      x: Math.round((v.x + dx) * 100) / 100,
-      y: Math.round((v.y + dy) * 100) / 100,
-    }))
+  const handleBedDragEnd = useCallback((bedId: number, newBoundary: Array<{x: number, y: number}>) => {
     updateBedById.mutate({ bedId, data: { boundary: newBoundary } })
-  }, [beds, updateBedById])
+  }, [updateBedById])
 
   const handlePlantingDragEnd = useCallback((plantingId: number, x: number, y: number) => {
     updatePlantingById.mutate({
