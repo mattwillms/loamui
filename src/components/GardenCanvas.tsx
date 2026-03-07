@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Container, Graphics, Text } from 'pixi.js'
+import { Assets, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import { Application, extend, useApplication } from '@pixi/react'
 import type { Garden } from '@/types/garden'
 import type { GardenPlanting } from '@/types/garden'
 import type { Bed } from '@/types/bed'
 
-extend({ Container, Graphics, Text })
+extend({ Container, Graphics, Sprite, Text })
 
 const TYPE_COLORS: Record<string, number> = {
   vegetable: 0x86efac,
@@ -28,6 +28,28 @@ function hexToPixi(hex: string | null | undefined): number | null {
   return parseInt(hex.replace('#', ''), 16)
 }
 
+function darkenPixiColor(color: number, factor = 0.6): number {
+  const r = Math.round(((color >> 16) & 0xff) * factor)
+  const g = Math.round(((color >> 8) & 0xff) * factor)
+  const b = Math.round((color & 0xff) * factor)
+  return (r << 16) | (g << 8) | b
+}
+
+// ── Texture cache ────────────────────────────────────────────────────────────
+
+const textureCache = new Map<string, Texture>()
+
+async function loadTexture(url: string): Promise<Texture | null> {
+  if (textureCache.has(url)) return textureCache.get(url)!
+  try {
+    const texture = await Assets.load(url)
+    textureCache.set(url, texture)
+    return texture
+  } catch {
+    return null
+  }
+}
+
 interface GardenCanvasProps {
   garden: Garden
   beds: Bed[]
@@ -48,7 +70,7 @@ interface GardenCanvasProps {
 function BackgroundGrid({ width, height, pixelsPerFoot }: { width: number; height: number; pixelsPerFoot: number }) {
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    g.rect(0, 0, width, height).fill(0xF5EFE6)
+    g.rect(0, 0, width, height).fill(0xEDE8DF)
 
     for (let x = 0; x <= width; x += pixelsPerFoot) {
       g.moveTo(x, 0).lineTo(x, height).stroke({ color: 0xE8DDD0, width: 1 })
@@ -100,35 +122,33 @@ function BedPolygon({
 
   const displayBoundary = pendingBoundary ?? boundary
 
-  // Bounding box center + top
+  // Bounding box center
   const xs = displayBoundary.map(v => v.x * pixelsPerFoot)
   const ys = displayBoundary.map(v => v.y * pixelsPerFoot)
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2
-  const minY = Math.min(...ys)
+
+  const fillColor = hexToPixi(bed.color) ?? 0xC4956A
+  const strokeColor = darkenPixiColor(fillColor)
+  const labelText = locked ? `\uD83D\uDD12 ${bed.name}` : bed.name
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     const pts = displayBoundary.map(v => ({ x: v.x * pixelsPerFoot, y: v.y * pixelsPerFoot }))
     const flat = pts.flatMap(p => [p.x, p.y])
-    const fillColor = hexToPixi(bed.color) ?? 0xC4956A
-    g.poly(flat).fill({ color: fillColor, alpha: 0.5 })
-    g.poly(flat).stroke({ color: locked ? 0x666666 : 0x8B6347, width: 2 })
+    g.poly(flat).fill({ color: fillColor, alpha: locked ? 0.4 : 0.5 })
+    g.poly(flat).stroke({ color: strokeColor, width: locked ? 3 : 2 })
+  }, [displayBoundary, pixelsPerFoot, locked, fillColor, strokeColor])
 
-    // Lock icon near center-top
-    if (locked) {
-      const bxs = pts.map(p => p.x)
-      const bys = pts.map(p => p.y)
-      const lx = (Math.min(...bxs) + Math.max(...bxs)) / 2
-      const ly = Math.min(...bys) + 12
-      g.roundRect(lx - 4, ly - 3, 8, 6, 1).fill(0xffffff)
-      g.moveTo(lx - 3, ly - 3)
-        .lineTo(lx - 3, ly - 6)
-        .bezierCurveTo(lx - 3, ly - 10, lx + 3, ly - 10, lx + 3, ly - 6)
-        .lineTo(lx + 3, ly - 3)
-        .stroke({ color: 0xffffff, width: 1.5 })
-    }
-  }, [displayBoundary, pixelsPerFoot, locked, bed.color])
+  // Label background pill
+  const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    // Measure text width roughly: ~6px per char at fontSize 11
+    const textWidth = labelText.length * 6
+    const pw = textWidth + 12
+    const ph = 18
+    g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).fill({ color: 0xffffff, alpha: 0.85 })
+  }, [labelText])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
@@ -190,21 +210,18 @@ function BedPolygon({
       onPointerDown={handlePointerDown}
     >
       <pixiGraphics draw={draw} />
-      <pixiText
-        text={bed.name}
-        x={cx}
-        y={locked ? Math.max(cy, minY + 22) : cy}
-        anchor={0.5}
-        style={{
-          fontSize: 11,
-          fill: 0xffffff,
-          dropShadow: {
-            color: 0x4a3728,
-            blur: 2,
-            distance: 1,
-          },
-        }}
-      />
+      {/* Label with white pill background */}
+      <pixiContainer x={cx} y={cy}>
+        <pixiGraphics draw={pillDraw} />
+        <pixiText
+          text={labelText}
+          anchor={0.5}
+          style={{
+            fontSize: 11,
+            fill: 0x1a1a1a,
+          }}
+        />
+      </pixiContainer>
     </pixiContainer>
   )
 }
@@ -252,13 +269,24 @@ function PlantMarker({
 
   const { app } = useApplication()
   const [hovered, setHovered] = useState(false)
+  const [texture, setTexture] = useState<Texture | null>(null)
   const color = hexToPixi(planting.color) ?? getColor(planting.plant_type)
-  const label = (planting.common_name ?? '?').split(' ')[0]
+  const firstName = (planting.common_name ?? '?').split(' ')[0]
+  const label = locked ? `\uD83D\uDD12 ${firstName}` : firstName
 
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
   const draggingRef = useRef(false)
   const finalDragRef = useRef({ x: 0, y: 0 })
+
+  // Load plant image texture
+  useEffect(() => {
+    if (planting.image_url) {
+      loadTexture(planting.image_url).then(t => {
+        if (t) setTexture(t)
+      })
+    }
+  }, [planting.image_url])
 
   // Pending position to prevent snap-back
   const [pendingPos, setPendingPos] = useState<{x: number, y: number} | null>(null)
@@ -278,17 +306,26 @@ function PlantMarker({
   const displayX = baseX + (draggingRef.current ? dragOffset.x : 0)
   const displayY = baseY + (draggingRef.current ? dragOffset.y : 0)
 
+  const RADIUS = 20
+
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    g.circle(0, 0, 10).fill(color)
-    g.circle(0, 0, 10).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2 : 1.5 })
-    // Lock icon overlay
-    if (locked) {
-      g.roundRect(-3, -1, 6, 5, 1).fill(0x666666)
-      g.moveTo(-2, -1).lineTo(-2, -3).bezierCurveTo(-2, -5, 2, -5, 2, -3).lineTo(2, -1)
-        .stroke({ color: 0x666666, width: 1.2 })
-    }
+    // Solid color base circle
+    g.circle(0, 0, RADIUS).fill(color)
+    // Color tint overlay (on top of image)
+    g.circle(0, 0, RADIUS).fill({ color, alpha: 0.3 })
+    // Border stroke
+    g.circle(0, 0, RADIUS).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2.5 : 1.5 })
   }, [color, locked])
+
+  // Label background pill
+  const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    const textWidth = label.length * 5.5
+    const pw = textWidth + 8
+    const ph = 14
+    g.roundRect(-pw / 2, -ph / 2, pw, ph, 3).fill({ color: 0xffffff, alpha: 0.85 })
+  }, [label])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
@@ -346,12 +383,32 @@ function PlantMarker({
       onPointerDown={handlePointerDown}
     >
       <pixiGraphics draw={draw} />
-      <pixiText
-        text={label}
-        y={14}
-        anchor={{ x: 0.5, y: 0 }}
-        style={{ fontSize: 9, fill: 0x2d2d2d }}
-      />
+      {/* Plant image sprite (clipped visually by being same size as circle) */}
+      {texture && (
+        <pixiSprite
+          texture={texture}
+          width={36}
+          height={36}
+          x={-18}
+          y={-18}
+          alpha={0.9}
+        />
+      )}
+      {/* Color tint + border re-drawn on top of sprite */}
+      <pixiGraphics draw={useCallback((g: import('pixi.js').Graphics) => {
+        g.clear()
+        g.circle(0, 0, RADIUS).fill({ color, alpha: 0.3 })
+        g.circle(0, 0, RADIUS).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2.5 : 1.5 })
+      }, [color, locked])} />
+      {/* Label with pill background */}
+      <pixiContainer y={RADIUS + 8}>
+        <pixiGraphics draw={pillDraw} />
+        <pixiText
+          text={label}
+          anchor={{ x: 0.5, y: 0.5 }}
+          style={{ fontSize: 9, fill: 0x2d2d2d }}
+        />
+      </pixiContainer>
     </pixiContainer>
   )
 }
@@ -632,7 +689,7 @@ export function GardenCanvas(props: GardenCanvasProps) {
       <Application
         width={stageWidth}
         height={stageHeight}
-        background={0xF5EFE6}
+        background={0xEDE8DF}
         antialias
       >
         <ResizeBridge width={stageWidth} height={stageHeight} />

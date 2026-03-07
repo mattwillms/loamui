@@ -57,5 +57,6 @@ export interface GardenPlanting {
   spacing_inches: number | null
   is_locked: boolean
   color: string | null
+  image_url: string | null
   plant?: PlantingPlantSummary
 }
