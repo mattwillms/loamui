@@ -28,13 +28,13 @@ export function useCreatePlanting() {
 
 export function useUpdatePlanting() {
   const queryClient = useQueryClient()
-  return useMutation<Planting, Error, { plantingId: number; bedId: number; gardenId: number; data: Partial<Planting> }>({
+  return useMutation<Planting, Error, { plantingId: number; bedId: number | null; gardenId: number; data: Partial<Planting> }>({
     mutationFn: async ({ plantingId, data }) => {
       const response = await apiClient.patch(`/plantings/${plantingId}`, data)
       return response.data
     },
     onSuccess: (planting, { bedId, gardenId }) => {
-      queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
+      if (bedId) queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
       queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
       queryClient.invalidateQueries({ queryKey: ['plantings', planting.id] })
     },
@@ -43,12 +43,12 @@ export function useUpdatePlanting() {
 
 export function useDeletePlanting() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { plantingId: number; bedId: number; gardenId: number }>({
+  return useMutation<void, Error, { plantingId: number; bedId: number | null; gardenId: number }>({
     mutationFn: async ({ plantingId }) => {
       await apiClient.delete(`/plantings/${plantingId}`)
     },
     onSuccess: (_, { bedId, gardenId, plantingId }) => {
-      queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
+      if (bedId) queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
       queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
       queryClient.invalidateQueries({ queryKey: ['plantings', plantingId] })
     },
@@ -74,7 +74,9 @@ export function useCreateGardenPlanting(gardenId: number) {
       return response.data
     },
     onSuccess: (planting) => {
-      queryClient.invalidateQueries({ queryKey: ['beds', planting.bed_id, 'plantings'] })
+      if (planting.bed_id) {
+        queryClient.invalidateQueries({ queryKey: ['beds', planting.bed_id, 'plantings'] })
+      }
       queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
     },
   })

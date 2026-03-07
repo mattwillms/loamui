@@ -99,7 +99,6 @@ interface GardenCanvasProps {
   plantings: GardenPlanting[]
   onPlantingSelect: (planting: GardenPlanting) => void
   onBedSelect: (bed: Bed) => void
-  onCanvasClick: (x: number, y: number) => void
   drawMode: boolean
   onBedDrawn: (boundary: Array<{x: number, y: number}>) => void
   lockedBeds: Set<number>
@@ -108,6 +107,7 @@ interface GardenCanvasProps {
   onPlantingDragEnd: (plantingId: number, x: number, y: number) => void
   selectedPlantingId?: number | null
   selectedBedId?: number | null
+  newPlantingId?: number | null
 }
 
 // ── Background grid ──────────────────────────────────────────────────────────
@@ -319,6 +319,7 @@ function PlantMarker({
   pixelsPerFoot,
   locked,
   selected,
+  isNew,
   onSelect,
   onDragEnd,
   onDragStart,
@@ -329,6 +330,7 @@ function PlantMarker({
   pixelsPerFoot: number
   locked: boolean
   selected: boolean
+  isNew: boolean
   onSelect: () => void
   onDragEnd: (x: number, y: number) => void
   onDragStart: () => void
@@ -347,6 +349,24 @@ function PlantMarker({
 
   const [sproutTexture, setSproutTexture] = useState<Texture | null>(null)
   const [lockTexture, setLockTexture] = useState<Texture | null>(null)
+
+  // Drop animation
+  const [animScale, setAnimScale] = useState(isNew ? 0 : 1)
+
+  useEffect(() => {
+    if (!isNew) return
+    let elapsed = 0
+    const duration = 400
+    const ticker = (delta: import('pixi.js').Ticker) => {
+      elapsed += delta.deltaMS
+      const t = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setAnimScale(eased)
+      if (t >= 1) app.ticker.remove(ticker)
+    }
+    app.ticker.add(ticker)
+    return () => { app.ticker.remove(ticker) }
+  }, [isNew, app])
 
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
@@ -470,7 +490,7 @@ function PlantMarker({
     <pixiContainer
       x={displayX}
       y={displayY}
-      scale={hovered ? 1.15 : 1}
+      scale={animScale * (hovered ? 1.15 : 1)}
       eventMode="static"
       cursor={locked ? 'pointer' : 'grab'}
       onPointerOver={() => setHovered(true)}
@@ -584,38 +604,6 @@ function DrawOverlay({
   )
 }
 
-// ── Canvas click handler ─────────────────────────────────────────────────────
-
-function CanvasClickArea({
-  width,
-  height,
-  pixelsPerFoot,
-  onClick,
-}: {
-  width: number
-  height: number
-  pixelsPerFoot: number
-  onClick: (x: number, y: number) => void
-}) {
-  const handleClick = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
-    const x = e.global.x / pixelsPerFoot
-    const y = e.global.y / pixelsPerFoot
-    onClick(x, y)
-  }, [pixelsPerFoot, onClick])
-
-  return (
-    <pixiGraphics
-      draw={useCallback((g: import('pixi.js').Graphics) => {
-        g.clear()
-        g.rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.001 })
-      }, [width, height])}
-      eventMode="static"
-      cursor="pointer"
-      onPointerDown={handleClick}
-    />
-  )
-}
-
 // ── Main stage content ───────────────────────────────────────────────────────
 
 function StageContent({
@@ -623,7 +611,6 @@ function StageContent({
   plantings,
   onPlantingSelect,
   onBedSelect,
-  onCanvasClick,
   drawMode,
   onBedDrawn,
   lockedBeds,
@@ -632,6 +619,7 @@ function StageContent({
   onPlantingDragEnd,
   selectedPlantingId,
   selectedBedId,
+  newPlantingId,
   stageWidth,
   stageHeight,
   pixelsPerFoot,
@@ -659,16 +647,6 @@ function StageContent({
   return (
     <>
       <BackgroundGrid width={stageWidth} height={stageHeight} pixelsPerFoot={pixelsPerFoot} />
-
-      {/* Click area FIRST so it's underneath everything else */}
-      {!drawMode && (
-        <CanvasClickArea
-          width={stageWidth}
-          height={stageHeight}
-          pixelsPerFoot={pixelsPerFoot}
-          onClick={onCanvasClick}
-        />
-      )}
 
       {/* Beds */}
       {beds.map(bed => (
@@ -699,6 +677,7 @@ function StageContent({
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedPlantings.has(p.id)}
           selected={selectedPlantingId === p.id}
+          isNew={newPlantingId === p.id}
           onSelect={() => onPlantingSelect(p)}
           onDragEnd={(x, y) => {
             setDraggingPlantingId(null)

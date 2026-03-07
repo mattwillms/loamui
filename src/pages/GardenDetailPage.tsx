@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { AlertTriangle, Pencil, Plus, ChevronRight, Trash2, PenLine } from 'lucide-react'
+import { AlertTriangle, Pencil, ChevronRight, ChevronDown, Trash2, PenLine, RectangleHorizontal, Leaf } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useGarden, useDeleteGarden, useUpdateGarden, useGardenPlantings } from '@/api/gardens'
 import { useBeds, useCreateBed, useUpdateBedById } from '@/api/beds'
 import { useGardenSoil } from '@/api/soil'
@@ -68,8 +74,9 @@ export function GardenDetailPage() {
   const [selectedPlanting, setSelectedPlanting] = useState<GardenPlanting | null>(null)
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pendingPosition, setPendingPosition] = useState<{x: number, y: number} | null>(null)
   const [drawMode, setDrawMode] = useState(false)
+  const [addBedMode, setAddBedMode] = useState<'rect' | 'draw' | null>(null)
+  const [newPlantingId, setNewPlantingId] = useState<number | null>(null)
   const [pendingBedBoundary, setPendingBedBoundary] = useState<Array<{x: number, y: number}> | null>(null)
   const [newBedNameDialogOpen, setNewBedNameDialogOpen] = useState(false)
   const [newBedName, setNewBedName] = useState('')
@@ -94,6 +101,16 @@ export function GardenDetailPage() {
       setLockedPlantings(new Set(gardenPlantings.filter(p => p.is_locked).map(p => p.id)))
     }
   }, [gardenPlantings])
+
+  useEffect(() => {
+    if (addBedMode === 'rect') {
+      setBedDialogOpen(true)
+      setAddBedMode(null)
+    } else if (addBedMode === 'draw') {
+      setDrawMode(true)
+      setAddBedMode(null)
+    }
+  }, [addBedMode])
 
   // Fetch full planting for PlantingPanel
   const { data: fullPlanting } = usePlanting(selectedPlanting?.id ?? 0)
@@ -203,37 +220,23 @@ export function GardenDetailPage() {
     setSelectedPlanting(null)
   }
 
-  // Canvas handlers
-  function handleCanvasClick(x: number, y: number) {
-    setPendingPosition({ x, y })
-    setPickerOpen(true)
-  }
-
   async function handlePlantSelect(plant: PlantSummary) {
-    if (!pendingPosition || !beds) return
     setPickerOpen(false)
-
-    const containingBed = beds.find(bed =>
-      bed.boundary && pointInPolygon(pendingPosition, bed.boundary)
-    ) ?? beds[0] ?? null
-
-    if (!containingBed) {
-      toast.error('Add a bed to the garden first.')
-      return
-    }
-
+    const centerX = (garden?.canvas_width_ft ?? 10) / 2
+    const centerY = (garden?.canvas_height_ft ?? 10) / 2
     try {
-      await createGardenPlanting.mutateAsync({
-        bed_id: containingBed.id,
+      const created = await createGardenPlanting.mutateAsync({
+        garden_id: gardenId,
         plant_id: plant.id,
-        pos_x: pendingPosition.x,
-        pos_y: pendingPosition.y,
+        pos_x: centerX,
+        pos_y: centerY,
         quantity: 1,
       })
+      setNewPlantingId(created.id)
+      setTimeout(() => setNewPlantingId(null), 600)
     } catch {
       toast.error('Failed to add planting.')
     }
-    setPendingPosition(null)
   }
 
   function handleBedDrawn(boundary: Array<{x: number, y: number}>) {
@@ -326,10 +329,6 @@ export function GardenDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setBedDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add bed
-          </Button>
           <Button variant="outline" size="icon" onClick={openEditDialog}>
             <Pencil className="h-4 w-4" />
           </Button>
@@ -385,25 +384,55 @@ export function GardenDetailPage() {
 
         {hasCanvas && (
           <>
-            {/* Toolbar */}
+            {/* Canvas toolbar */}
             <div className="mb-3 flex items-center gap-2">
-              <Button
-                variant={drawMode ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setDrawMode(!drawMode)}
-              >
-                <PenLine className="mr-2 h-4 w-4" />
-                Draw Bed
-              </Button>
-              {drawMode && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDrawMode(false)}
-                >
-                  Cancel
+              {drawMode ? (
+                <Button variant="default" size="sm" onClick={() => setDrawMode(false)}>
+                  <PenLine className="mr-2 h-4 w-4" />
+                  Cancel Draw
                 </Button>
+              ) : (
+                <>
+                  <div className="flex">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-r-none border-r-0"
+                      onClick={() => setAddBedMode('rect')}
+                    >
+                      <RectangleHorizontal className="mr-2 h-4 w-4" />
+                      Add Bed
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-l-none px-2">
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => setAddBedMode('rect')}>
+                          <RectangleHorizontal className="mr-2 h-4 w-4" />
+                          Rectangle
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setAddBedMode('draw')}>
+                          <PenLine className="mr-2 h-4 w-4" />
+                          Draw polygon
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <Leaf className="mr-2 h-4 w-4" />
+                    Add Plant
+                  </Button>
+                </>
               )}
+
               <span className="ml-auto text-xs text-muted-foreground">
                 {garden.canvas_width_ft} × {garden.canvas_height_ft} ft
               </span>
@@ -416,7 +445,6 @@ export function GardenDetailPage() {
                 plantings={gardenPlantings}
                 onPlantingSelect={handlePlantingSelect}
                 onBedSelect={handleBedSelect}
-                onCanvasClick={handleCanvasClick}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
                 lockedBeds={lockedBeds}
@@ -425,6 +453,7 @@ export function GardenDetailPage() {
                 onPlantingDragEnd={handlePlantingDragEnd}
                 selectedPlantingId={selectedPlanting?.id}
                 selectedBedId={selectedBed?.id}
+                newPlantingId={newPlantingId}
               />
             </Suspense>
           </>
@@ -599,10 +628,7 @@ export function GardenDetailPage() {
       {/* Plant picker */}
       <PlantPicker
         open={pickerOpen}
-        onClose={() => {
-          setPickerOpen(false)
-          setPendingPosition(null)
-        }}
+        onClose={() => setPickerOpen(false)}
         onSelect={handlePlantSelect}
       />
 

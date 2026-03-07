@@ -45,8 +45,9 @@ export interface GardenUpdate {
 
 export interface GardenPlanting {
   id: number
-  bed_id: number
-  bed_name: string
+  garden_id: number | null
+  bed_id: number | null
+  bed_name: string | null
   plant_id: number
   common_name: string | null
   status: string

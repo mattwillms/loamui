@@ -10,7 +10,8 @@ export interface PlantingPlantSummary {
 
 export interface Planting {
   id: number
-  bed_id: number
+  bed_id: number | null
+  garden_id: number | null
   plant_id: number
   plant: PlantingPlantSummary | null
   status: string
@@ -52,7 +53,8 @@ export interface TreatmentLogCreate {
 }
 
 export interface PlantingCreate {
-  bed_id: number
+  bed_id?: number
+  garden_id?: number
   plant_id: number
   grid_x?: number
   grid_y?: number

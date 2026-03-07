@@ -63,9 +63,9 @@ function todayISO() {
 
 interface Props {
   planting: Planting
-  bedId: number
+  bedId: number | null
   gardenId: number
-  bedName: string
+  bedName: string | null
   onClose: () => void
 }
 
