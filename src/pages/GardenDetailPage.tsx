@@ -83,6 +83,7 @@ export function GardenDetailPage() {
 
   // Canvas container ref for outside-click detection
   const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const pendingSelectionRef = useRef(false)
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
@@ -118,6 +119,17 @@ export function GardenDetailPage() {
       setLockedPlantings(new Set(gardenPlantings.filter(p => p.is_locked).map(p => p.id)))
     }
   }, [gardenPlantings])
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setSelectedPlanting(null)
+        setSelectedBed(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   useEffect(() => {
     if (addBedMode === 'rect') {
@@ -228,13 +240,17 @@ export function GardenDetailPage() {
 
   // Panel selection with mutual exclusion
   function handlePlantingSelect(planting: GardenPlanting) {
+    pendingSelectionRef.current = true
     setSelectedPlanting(planting)
     setSelectedBed(null)
+    setTimeout(() => { pendingSelectionRef.current = false }, 50)
   }
 
   function handleBedSelect(bed: Bed) {
+    pendingSelectionRef.current = true
     setSelectedBed(bed)
     setSelectedPlanting(null)
+    setTimeout(() => { pendingSelectionRef.current = false }, 50)
   }
 
   async function handlePlantSelect(plant: PlantSummary) {
@@ -463,7 +479,11 @@ export function GardenDetailPage() {
                 plantings={gardenPlantings}
                 onPlantingSelect={handlePlantingSelect}
                 onBedSelect={handleBedSelect}
-                onDismiss={() => { setSelectedPlanting(null); setSelectedBed(null) }}
+                onDismiss={() => {
+                  if (pendingSelectionRef.current) return
+                  setSelectedPlanting(null)
+                  setSelectedBed(null)
+                }}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
                 lockedBeds={lockedBeds}
