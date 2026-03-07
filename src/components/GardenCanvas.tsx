@@ -111,27 +111,11 @@ interface GardenCanvasProps {
   onDismiss?: () => void
 }
 
-// ── Canvas click area (dismiss panels) ──────────────────────────────────────
-
-function CanvasClickArea({ width, height, onClick }: {
-  width: number; height: number; onClick: () => void
-}) {
-  return (
-    <pixiGraphics
-      draw={useCallback((g: import('pixi.js').Graphics) => {
-        g.clear()
-        g.rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.001 })
-      }, [width, height])}
-      eventMode="static"
-      cursor="default"
-      onPointerUp={useCallback(() => onClick(), [onClick])}
-    />
-  )
-}
-
 // ── Background grid ──────────────────────────────────────────────────────────
 
-function BackgroundGrid({ width, height, pixelsPerFoot }: { width: number; height: number; pixelsPerFoot: number }) {
+function BackgroundGrid({ width, height, pixelsPerFoot, onDismiss }: {
+  width: number; height: number; pixelsPerFoot: number; onDismiss?: () => void
+}) {
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     g.rect(0, 0, width, height).fill(0xEDE8DF)
@@ -144,7 +128,7 @@ function BackgroundGrid({ width, height, pixelsPerFoot }: { width: number; heigh
     }
   }, [width, height, pixelsPerFoot])
 
-  return <pixiGraphics draw={draw} />
+  return <pixiGraphics draw={draw} eventMode="static" onPointerDown={useCallback(() => onDismiss?.(), [onDismiss])} />
 }
 
 // ── Bed polygon ──────────────────────────────────────────────────────────────
@@ -662,8 +646,7 @@ function StageContent({
 
   return (
     <>
-      {onDismiss && <CanvasClickArea width={stageWidth} height={stageHeight} onClick={onDismiss} />}
-      <BackgroundGrid width={stageWidth} height={stageHeight} pixelsPerFoot={pixelsPerFoot} />
+      <BackgroundGrid width={stageWidth} height={stageHeight} pixelsPerFoot={pixelsPerFoot} onDismiss={onDismiss} />
 
       {/* Beds */}
       {beds.map(bed => (
