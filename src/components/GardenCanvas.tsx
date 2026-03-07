@@ -134,7 +134,7 @@ function BedPolygon({
 
   const fillColor = hexToPixi(bed.color) ?? 0xC4956A
   const strokeColor = darkenPixiColor(fillColor)
-  const labelText = locked ? `\uD83D\uDD12 ${bed.name}` : bed.name
+  const labelText = bed.name
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
@@ -149,13 +149,29 @@ function BedPolygon({
   }, [displayBoundary, pixelsPerFoot, locked, fillColor, strokeColor, selected])
 
   // Label background pill
+  const pillWidth = labelText.length * 7.5 + 16
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    const textWidth = labelText.length * 7.5
-    const pw = textWidth + 16
+    const pw = pillWidth
     const ph = 22
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).fill({ color: 0xffffff, alpha: 0.85 })
-  }, [labelText])
+  }, [pillWidth])
+
+  const lockDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    if (!locked) return
+    const ls = 0.5
+    const lox = -pillWidth / 2 - 14
+    const loy = -6
+    // Body
+    g.roundRect(lox + 3*ls, loy + 11*ls, 18*ls, 11*ls, 2*ls).fill(0x1a1a1a)
+    // Shackle
+    g.moveTo(lox + 7*ls, loy + 11*ls)
+      .lineTo(lox + 7*ls, loy + 7*ls)
+      .bezierCurveTo(lox + 7*ls, loy + 4*ls, lox + 17*ls, loy + 4*ls, lox + 17*ls, loy + 7*ls)
+      .lineTo(lox + 17*ls, loy + 11*ls)
+      .stroke({ color: 0x1a1a1a, width: 1.2 })
+  }, [locked, pillWidth])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
@@ -220,6 +236,7 @@ function BedPolygon({
       {/* Label with white pill background */}
       <pixiContainer x={cx} y={cy}>
         <pixiGraphics draw={pillDraw} />
+        {locked && <pixiGraphics draw={lockDraw} />}
         <pixiText
           text={labelText}
           anchor={0.5}
@@ -281,7 +298,7 @@ function PlantMarker({
   const [texture, setTexture] = useState<Texture | null>(null)
   const color = hexToPixi(planting.color) ?? getColor(planting.plant_type)
   const firstName = (planting.common_name ?? '?').split(' ')[0]
-  const label = locked ? `\uD83D\uDD12 ${firstName}` : firstName
+  const label = firstName
 
   const maskRef = useRef<import('pixi.js').Graphics | null>(null)
   const spriteRef = useRef<import('pixi.js').Sprite | null>(null)
@@ -345,25 +362,46 @@ function PlantMarker({
   const borderDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     g.circle(0, 0, RADIUS).stroke({ color: 0x2d2d2d, width: 2 })
+    if (locked) {
+      const ls = 0.55
+      const lox = 5
+      const loy = -16
+      // Body
+      g.roundRect(lox + 3*ls, loy + 11*ls, 18*ls, 11*ls, 2*ls).fill(0xffffff)
+      // Shackle
+      g.moveTo(lox + 7*ls, loy + 11*ls)
+        .lineTo(lox + 7*ls, loy + 7*ls)
+        .bezierCurveTo(lox + 7*ls, loy + 4*ls, lox + 17*ls, loy + 4*ls, lox + 17*ls, loy + 7*ls)
+        .lineTo(lox + 17*ls, loy + 11*ls)
+        .stroke({ color: 0xffffff, width: 1.2 })
+    }
     if (selected) {
       g.circle(0, 0, 24).stroke({ color: 0xffffff, width: 2.5 })
       g.circle(0, 0, 26).stroke({ color: 0x4a7c59, width: 1.5 })
     }
-  }, [selected])
+  }, [locked, selected])
 
   const sproutDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
+    const s = 40 / 24
+    const ox = -20
+    const oy = -20
+
     // Stem
-    g.moveTo(0, 8).lineTo(0, -2).stroke({ color: 0xffffff, width: 2 })
+    g.moveTo(ox + 12*s, oy + 22*s)
+      .lineTo(ox + 12*s, oy + 12*s)
+      .stroke({ color: 0xffffff, width: 1.5 })
+
     // Left leaf
-    g.moveTo(0, 2)
-      .bezierCurveTo(-10, -2, -12, -10, -6, -14)
-      .bezierCurveTo(-4, -8, -2, -4, 0, 2)
+    g.moveTo(ox + 12*s, oy + 12*s)
+      .bezierCurveTo(ox + 9*s, oy + 9*s, ox + 3*s, oy + 9*s, ox + 2*s, oy + 12*s)
+      .bezierCurveTo(ox + 5*s, oy + 15*s, ox + 10*s, oy + 15*s, ox + 12*s, oy + 12*s)
       .fill({ color: 0xffffff, alpha: 0.9 })
+
     // Right leaf
-    g.moveTo(0, 2)
-      .bezierCurveTo(10, -2, 12, -10, 6, -14)
-      .bezierCurveTo(4, -8, 2, -4, 0, 2)
+    g.moveTo(ox + 12*s, oy + 12*s)
+      .bezierCurveTo(ox + 15*s, oy + 9*s, ox + 21*s, oy + 9*s, ox + 22*s, oy + 12*s)
+      .bezierCurveTo(ox + 19*s, oy + 15*s, ox + 14*s, oy + 15*s, ox + 12*s, oy + 12*s)
       .fill({ color: 0xffffff, alpha: 0.9 })
   }, [])
 
