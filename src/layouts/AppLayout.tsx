@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router'
 import {
   LayoutDashboard,
-  Leaf,
+  BookMarked,
   Sprout,
   CalendarDays,
   BookOpen,
@@ -58,8 +58,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/gardens', icon: Leaf, label: 'Gardens' },
-  { to: '/plants', icon: Sprout, label: 'Plants' },
+  { to: '/gardens', icon: Sprout, label: 'Gardens' },
+  { to: '/plants', icon: BookMarked, label: 'Plants' },
   { to: '/schedule', icon: CalendarDays, label: 'Schedule' },
   { to: '/journal', icon: BookOpen, label: 'Journal' },
 ]

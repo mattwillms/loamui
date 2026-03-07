@@ -19,6 +19,7 @@ export function useGarden(id: number) {
       const response = await apiClient.get(`/gardens/${id}`)
       return response.data
     },
+    enabled: id > 0,
   })
 }
 
