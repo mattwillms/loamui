@@ -127,7 +127,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
 
   async function handleStatusChange(status: PlantingStatus) {
     try {
-      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { status } })
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, gardenId, data: { status } })
       fireJournal(`${plantName} status updated to ${status}`, ['status', status])
     } catch {
       toast.error('Failed to update status.')
@@ -137,7 +137,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
   async function handleNotesSave() {
     if (notes === (planting.notes ?? '')) return
     try {
-      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { notes } })
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, gardenId, data: { notes } })
     } catch {
       toast.error('Failed to save notes.')
     }
@@ -192,7 +192,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
 
   async function handleToggleLock() {
     try {
-      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { is_locked: !planting.is_locked } })
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, gardenId, data: { is_locked: !planting.is_locked } })
     } catch {
       toast.error('Failed to toggle lock.')
     }
@@ -200,7 +200,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
 
   async function handleColorChange(color: string | null) {
     try {
-      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, data: { color } })
+      await updatePlanting.mutateAsync({ plantingId: planting.id, bedId, gardenId, data: { color } })
     } catch {
       toast.error('Failed to update color.')
     }
@@ -212,7 +212,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
       return
     }
     try {
-      await deletePlanting.mutateAsync({ plantingId: planting.id, bedId })
+      await deletePlanting.mutateAsync({ plantingId: planting.id, bedId, gardenId })
       fireJournal(`${plantName} removed from ${bedName}`, ['removal'])
       onClose()
     } catch {

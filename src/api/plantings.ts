@@ -28,25 +28,29 @@ export function useCreatePlanting() {
 
 export function useUpdatePlanting() {
   const queryClient = useQueryClient()
-  return useMutation<Planting, Error, { plantingId: number; bedId: number; data: Partial<Planting> }>({
+  return useMutation<Planting, Error, { plantingId: number; bedId: number; gardenId: number; data: Partial<Planting> }>({
     mutationFn: async ({ plantingId, data }) => {
       const response = await apiClient.patch(`/plantings/${plantingId}`, data)
       return response.data
     },
-    onSuccess: (_, { bedId }) => {
+    onSuccess: (planting, { bedId, gardenId }) => {
       queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['plantings', planting.id] })
     },
   })
 }
 
 export function useDeletePlanting() {
   const queryClient = useQueryClient()
-  return useMutation<void, Error, { plantingId: number; bedId: number }>({
+  return useMutation<void, Error, { plantingId: number; bedId: number; gardenId: number }>({
     mutationFn: async ({ plantingId }) => {
       await apiClient.delete(`/plantings/${plantingId}`)
     },
-    onSuccess: (_, { bedId }) => {
+    onSuccess: (_, { bedId, gardenId, plantingId }) => {
       queryClient.invalidateQueries({ queryKey: ['beds', bedId, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['plantings', plantingId] })
     },
   })
 }

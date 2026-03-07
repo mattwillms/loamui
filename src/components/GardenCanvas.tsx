@@ -79,9 +79,18 @@ function BedPolygon({
   const boundary = bed.boundary
   if (!boundary || boundary.length < 3) return null
 
+  const { app } = useApplication()
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
   const draggingRef = useRef(false)
+  const finalDragRef = useRef({ x: 0, y: 0 })
+
+  // Bounding box center + top
+  const xs = boundary.map(v => v.x * pixelsPerFoot)
+  const ys = boundary.map(v => v.y * pixelsPerFoot)
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2
+  const minY = Math.min(...ys)
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
@@ -90,40 +99,63 @@ function BedPolygon({
     const fillColor = hexToPixi(bed.color) ?? 0xC4956A
     g.poly(flat).fill({ color: fillColor, alpha: 0.5 })
     g.poly(flat).stroke({ color: locked ? 0x666666 : 0x8B6347, width: 2 })
+
+    // Lock icon near center-top
+    if (locked) {
+      const bxs = pts.map(p => p.x)
+      const bys = pts.map(p => p.y)
+      const lx = (Math.min(...bxs) + Math.max(...bxs)) / 2
+      const ly = Math.min(...bys) + 12
+      g.roundRect(lx - 4, ly - 3, 8, 6, 1).fill(0xffffff)
+      g.moveTo(lx - 3, ly - 3)
+        .lineTo(lx - 3, ly - 6)
+        .bezierCurveTo(lx - 3, ly - 10, lx + 3, ly - 10, lx + 3, ly - 6)
+        .lineTo(lx + 3, ly - 3)
+        .stroke({ color: 0xffffff, width: 1.5 })
+    }
   }, [boundary, pixelsPerFoot, locked, bed.color])
 
-  // Center label in bounding box
-  const xs = boundary.map(v => v.x * pixelsPerFoot)
-  const ys = boundary.map(v => v.y * pixelsPerFoot)
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2
-  const cy = (Math.min(...ys) + Math.max(...ys)) / 2
-
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
-    if (locked) return
     e.stopPropagation()
+    if (locked) {
+      // Locked beds can still be selected on click
+      onSelect()
+      return
+    }
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
-  }, [locked])
+    finalDragRef.current = { x: 0, y: 0 }
 
-  const handlePointerMove = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
-    if (!dragStartRef.current) return
-    const dx = e.global.x - dragStartRef.current.x
-    const dy = e.global.y - dragStartRef.current.y
-    if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 3) return
-    draggingRef.current = true
-    setDragOffset({ x: dx, y: dy })
-  }, [])
-
-  const handlePointerUp = useCallback(() => {
-    if (draggingRef.current) {
-      onDragEnd(dragOffset.x / pixelsPerFoot, dragOffset.y / pixelsPerFoot)
-    } else {
-      onSelect()
+    const onMove = (ev: import('pixi.js').FederatedPointerEvent) => {
+      if (!dragStartRef.current) return
+      const dx = ev.global.x - dragStartRef.current.x
+      const dy = ev.global.y - dragStartRef.current.y
+      if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 4) return
+      draggingRef.current = true
+      finalDragRef.current = { x: dx, y: dy }
+      setDragOffset({ x: dx, y: dy })
     }
-    dragStartRef.current = null
-    draggingRef.current = false
-    setDragOffset({ x: 0, y: 0 })
-  }, [dragOffset, pixelsPerFoot, onDragEnd, onSelect])
+
+    const onUp = () => {
+      app.stage.off('pointermove', onMove)
+      app.stage.off('pointerup', onUp)
+      app.stage.off('pointerupoutside', onUp)
+
+      if (draggingRef.current) {
+        onDragEnd(finalDragRef.current.x / pixelsPerFoot, finalDragRef.current.y / pixelsPerFoot)
+      } else {
+        onSelect()
+      }
+
+      dragStartRef.current = null
+      draggingRef.current = false
+      setDragOffset({ x: 0, y: 0 })
+    }
+
+    app.stage.on('pointermove', onMove)
+    app.stage.on('pointerup', onUp)
+    app.stage.on('pointerupoutside', onUp)
+  }, [app, locked, pixelsPerFoot, onDragEnd, onSelect])
 
   return (
     <pixiContainer
@@ -132,15 +164,12 @@ function BedPolygon({
       eventMode="static"
       cursor={locked ? 'pointer' : 'grab'}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerUpOutside={handlePointerUp}
     >
       <pixiGraphics draw={draw} />
       <pixiText
         text={bed.name}
         x={cx}
-        y={cy}
+        y={locked ? Math.max(cy, minY + 22) : cy}
         anchor={0.5}
         style={{
           fontSize: 11,
@@ -182,24 +211,43 @@ function PlantMarker({
   locked,
   onSelect,
   onDragEnd,
+  onDragStart,
 }: {
   planting: GardenPlanting
   pixelsPerFoot: number
   locked: boolean
   onSelect: () => void
   onDragEnd: (x: number, y: number) => void
+  onDragStart: () => void
 }) {
   if (planting.pos_x == null || planting.pos_y == null) return null
 
+  const { app } = useApplication()
   const [hovered, setHovered] = useState(false)
   const color = hexToPixi(planting.color) ?? getColor(planting.plant_type)
-  const sx = planting.pos_x * pixelsPerFoot
-  const sy = planting.pos_y * pixelsPerFoot
   const label = (planting.common_name ?? '?').split(' ')[0]
 
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
   const draggingRef = useRef(false)
+  const finalDragRef = useRef({ x: 0, y: 0 })
+
+  // Pending position to prevent snap-back
+  const [pendingPos, setPendingPos] = useState<{x: number, y: number} | null>(null)
+
+  useEffect(() => {
+    if (pendingPos && planting.pos_x != null && planting.pos_y != null) {
+      if (Math.abs(planting.pos_x - pendingPos.x) < 0.01 &&
+          Math.abs(planting.pos_y - pendingPos.y) < 0.01) {
+        setPendingPos(null)
+      }
+    }
+  }, [planting.pos_x, planting.pos_y, pendingPos])
+
+  const baseX = (pendingPos?.x ?? planting.pos_x!) * pixelsPerFoot
+  const baseY = (pendingPos?.y ?? planting.pos_y!) * pixelsPerFoot
+  const displayX = baseX + (draggingRef.current ? dragOffset.x : 0)
+  const displayY = baseY + (draggingRef.current ? dragOffset.y : 0)
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
@@ -217,43 +265,55 @@ function PlantMarker({
     e.stopPropagation()
     dragStartRef.current = { x: e.global.x, y: e.global.y }
     draggingRef.current = false
-  }, [])
+    finalDragRef.current = { x: 0, y: 0 }
 
-  const handlePointerMove = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
-    if (!dragStartRef.current || locked) return
-    const dx = e.global.x - dragStartRef.current.x
-    const dy = e.global.y - dragStartRef.current.y
-    if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 3) return
-    draggingRef.current = true
-    setDragOffset({ x: dx, y: dy })
-  }, [locked])
-
-  const handlePointerUp = useCallback(() => {
-    if (draggingRef.current) {
-      const newX = (sx + dragOffset.x) / pixelsPerFoot
-      const newY = (sy + dragOffset.y) / pixelsPerFoot
-      onDragEnd(newX, newY)
-    } else {
-      onSelect()
+    const onMove = (ev: import('pixi.js').FederatedPointerEvent) => {
+      if (!dragStartRef.current || locked) return
+      const dx = ev.global.x - dragStartRef.current.x
+      const dy = ev.global.y - dragStartRef.current.y
+      if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 4) return
+      if (!draggingRef.current) {
+        draggingRef.current = true
+        onDragStart()
+      }
+      finalDragRef.current = { x: dx, y: dy }
+      setDragOffset({ x: dx, y: dy })
     }
-    dragStartRef.current = null
-    draggingRef.current = false
-    setDragOffset({ x: 0, y: 0 })
-  }, [sx, sy, dragOffset, pixelsPerFoot, onDragEnd, onSelect])
+
+    const onUp = () => {
+      app.stage.off('pointermove', onMove)
+      app.stage.off('pointerup', onUp)
+      app.stage.off('pointerupoutside', onUp)
+
+      if (draggingRef.current) {
+        const newX = (baseX + finalDragRef.current.x) / pixelsPerFoot
+        const newY = (baseY + finalDragRef.current.y) / pixelsPerFoot
+        onDragEnd(newX, newY)
+        setPendingPos({ x: newX, y: newY })
+      } else {
+        onSelect()
+      }
+
+      dragStartRef.current = null
+      draggingRef.current = false
+      setDragOffset({ x: 0, y: 0 })
+    }
+
+    app.stage.on('pointermove', onMove)
+    app.stage.on('pointerup', onUp)
+    app.stage.on('pointerupoutside', onUp)
+  }, [app, locked, baseX, baseY, pixelsPerFoot, onDragEnd, onDragStart, onSelect])
 
   return (
     <pixiContainer
-      x={sx + dragOffset.x}
-      y={sy + dragOffset.y}
+      x={displayX}
+      y={displayY}
       scale={hovered ? 1.15 : 1}
       eventMode="static"
       cursor={locked ? 'pointer' : 'grab'}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerUpOutside={handlePointerUp}
     >
       <pixiGraphics draw={draw} />
       <pixiText
@@ -387,6 +447,7 @@ function StageContent({
   pixelsPerFoot,
 }: Omit<GardenCanvasProps, 'garden'> & { stageWidth: number; stageHeight: number; pixelsPerFoot: number }) {
   const [drawVertices, setDrawVertices] = useState<Array<{x: number, y: number}>>([])
+  const [draggingPlantingId, setDraggingPlantingId] = useState<number | null>(null)
 
   function handleVertexAdd(x: number, y: number) {
     setDrawVertices(prev => [...prev, { x, y }])
@@ -430,10 +491,12 @@ function StageContent({
         />
       ))}
 
-      {/* Footprints */}
-      {plantings.map(p => (
-        <PlantFootprint key={`fp-${p.id}`} planting={p} pixelsPerFoot={pixelsPerFoot} />
-      ))}
+      {/* Footprints — hidden for currently dragged planting */}
+      {plantings.map(p =>
+        p.id === draggingPlantingId ? null : (
+          <PlantFootprint key={`fp-${p.id}`} planting={p} pixelsPerFoot={pixelsPerFoot} />
+        )
+      )}
 
       {/* Plant markers */}
       {plantings.map(p => (
@@ -443,7 +506,11 @@ function StageContent({
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedPlantings.has(p.id)}
           onSelect={() => onPlantingSelect(p)}
-          onDragEnd={(x, y) => onPlantingDragEnd(p.id, x, y)}
+          onDragEnd={(x, y) => {
+            setDraggingPlantingId(null)
+            onPlantingDragEnd(p.id, x, y)
+          }}
+          onDragStart={() => setDraggingPlantingId(p.id)}
         />
       ))}
 
@@ -469,6 +536,15 @@ function ResizeBridge({ width, height }: { width: number; height: number }) {
       app.renderer.resize(width, height)
     }
   }, [app, width, height])
+
+  // Enable global pointer events on the stage for drag tracking
+  useEffect(() => {
+    if (app?.stage) {
+      app.stage.eventMode = 'static'
+      app.stage.hitArea = { contains: () => true }
+    }
+  }, [app])
+
   return null
 }
 
