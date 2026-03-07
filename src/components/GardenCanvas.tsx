@@ -143,10 +143,9 @@ function BedPolygon({
   // Label background pill
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    // Measure text width roughly: ~6px per char at fontSize 11
-    const textWidth = labelText.length * 6
-    const pw = textWidth + 12
-    const ph = 18
+    const textWidth = labelText.length * 7.5
+    const pw = textWidth + 16
+    const ph = 22
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).fill({ color: 0xffffff, alpha: 0.85 })
   }, [labelText])
 
@@ -217,7 +216,7 @@ function BedPolygon({
           text={labelText}
           anchor={0.5}
           style={{
-            fontSize: 11,
+            fontSize: 13,
             fill: 0x1a1a1a,
           }}
         />
@@ -274,6 +273,9 @@ function PlantMarker({
   const firstName = (planting.common_name ?? '?').split(' ')[0]
   const label = locked ? `\uD83D\uDD12 ${firstName}` : firstName
 
+  const maskRef = useRef<import('pixi.js').Graphics | null>(null)
+  const spriteRef = useRef<import('pixi.js').Sprite | null>(null)
+
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
   const draggingRef = useRef(false)
@@ -287,6 +289,13 @@ function PlantMarker({
       })
     }
   }, [planting.image_url])
+
+  // Apply mask imperatively when both refs are set
+  useEffect(() => {
+    if (spriteRef.current && maskRef.current) {
+      spriteRef.current.mask = maskRef.current
+    }
+  }, [texture])
 
   // Pending position to prevent snap-back
   const [pendingPos, setPendingPos] = useState<{x: number, y: number} | null>(null)
@@ -307,23 +316,34 @@ function PlantMarker({
   const displayY = baseY + (draggingRef.current ? dragOffset.y : 0)
 
   const RADIUS = 20
+  const initial = (planting.common_name ?? '?')[0].toUpperCase()
 
-  const draw = useCallback((g: import('pixi.js').Graphics) => {
+  const baseDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    // Solid color base circle
     g.circle(0, 0, RADIUS).fill(color)
-    // Color tint overlay (on top of image)
+  }, [color])
+
+  const maskDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    g.circle(0, 0, RADIUS).fill(0xffffff)
+  }, [])
+
+  const tintDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
     g.circle(0, 0, RADIUS).fill({ color, alpha: 0.3 })
-    // Border stroke
-    g.circle(0, 0, RADIUS).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2.5 : 1.5 })
-  }, [color, locked])
+  }, [color])
+
+  const borderDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    g.circle(0, 0, RADIUS).stroke({ color: 0x2d2d2d, width: 2 })
+  }, [])
 
   // Label background pill
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    const textWidth = label.length * 5.5
-    const pw = textWidth + 8
-    const ph = 14
+    const textWidth = label.length * 6.5
+    const pw = textWidth + 10
+    const ph = 18
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 3).fill({ color: 0xffffff, alpha: 0.85 })
   }, [label])
 
@@ -382,31 +402,41 @@ function PlantMarker({
       onPointerOut={() => setHovered(false)}
       onPointerDown={handlePointerDown}
     >
-      <pixiGraphics draw={draw} />
-      {/* Plant image sprite (clipped visually by being same size as circle) */}
-      {texture && (
-        <pixiSprite
-          texture={texture}
-          width={36}
-          height={36}
-          x={-18}
-          y={-18}
-          alpha={0.9}
+      {/* 1. Base color circle */}
+      <pixiGraphics draw={baseDraw} />
+      {texture ? (
+        <>
+          {/* 2a. Mask shape */}
+          <pixiGraphics ref={(g: import('pixi.js').Graphics | null) => { maskRef.current = g }} draw={maskDraw} />
+          {/* 2b. Sprite masked to circle */}
+          <pixiSprite
+            ref={(s: import('pixi.js').Sprite | null) => { spriteRef.current = s }}
+            texture={texture}
+            width={40}
+            height={40}
+            x={-20}
+            y={-20}
+          />
+          {/* 2c. Color tint overlay */}
+          <pixiGraphics draw={tintDraw} />
+        </>
+      ) : (
+        /* Fallback: initial letter centered */
+        <pixiText
+          text={initial}
+          anchor={0.5}
+          style={{ fontSize: 14, fontWeight: 'bold', fill: 0xffffff }}
         />
       )}
-      {/* Color tint + border re-drawn on top of sprite */}
-      <pixiGraphics draw={useCallback((g: import('pixi.js').Graphics) => {
-        g.clear()
-        g.circle(0, 0, RADIUS).fill({ color, alpha: 0.3 })
-        g.circle(0, 0, RADIUS).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2.5 : 1.5 })
-      }, [color, locked])} />
-      {/* Label with pill background */}
+      {/* 3. Border on top always */}
+      <pixiGraphics draw={borderDraw} />
+      {/* 4. Label with pill background */}
       <pixiContainer y={RADIUS + 8}>
         <pixiGraphics draw={pillDraw} />
         <pixiText
           text={label}
           anchor={{ x: 0.5, y: 0.5 }}
-          style={{ fontSize: 9, fill: 0x2d2d2d }}
+          style={{ fontSize: 11, fill: 0x2d2d2d }}
         />
       </pixiContainer>
     </pixiContainer>
