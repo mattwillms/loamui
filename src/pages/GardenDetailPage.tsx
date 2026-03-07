@@ -21,6 +21,7 @@ import { PlantPicker } from '@/components/PlantPicker'
 import { PlantingPanel } from '@/components/PlantingPanel'
 import { BedPanel } from '@/components/BedPanel'
 import { pointInPolygon, rectBoundary } from '@/lib/geometry'
+import { darkenHex, contrastColor } from '@/lib/colors'
 import type { Bed } from '@/types/bed'
 import type { GardenPlanting } from '@/types/garden'
 import type { PlantSummary } from '@/types/plant'
@@ -452,38 +453,53 @@ export function GardenDetailPage() {
 
         {!bedsLoading && beds && beds.length > 0 && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {beds.map((bed) => (
-              <Link key={bed.id} to={`/beds/${bed.id}`} className="block">
-                <Card className="cursor-pointer transition-shadow hover:shadow-md">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-base font-medium">{bed.name}</CardTitle>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {bed.notes && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">{bed.notes}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {bed.width_ft && bed.length_ft && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {bed.width_ft} × {bed.length_ft} ft
-                        </span>
+            {beds.map((bed) => {
+              const cardStyle = bed.color ? {
+                backgroundColor: bed.color + '33',
+                borderColor: darkenHex(bed.color),
+              } : {}
+              const nameStyle = bed.color ? { color: contrastColor(bed.color) } : {}
+              return (
+                <Link key={bed.id} to={`/beds/${bed.id}`} className="block">
+                  <Card className="cursor-pointer transition-shadow hover:shadow-md" style={cardStyle}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="flex items-center text-base font-medium" style={nameStyle}>
+                        {bed.color && (
+                          <span
+                            className="inline-block h-3 w-3 flex-shrink-0 rounded-full mr-1.5"
+                            style={{ backgroundColor: bed.color }}
+                          />
+                        )}
+                        {bed.name}
+                      </CardTitle>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      {bed.notes && (
+                        <p className="text-sm text-muted-foreground line-clamp-2" style={nameStyle}>{bed.notes}</p>
                       )}
-                      {bed.sun_exposure_override && (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                          {bed.sun_exposure_override}
-                        </span>
-                      )}
-                      {bed.is_locked && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          Locked
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {bed.width_ft && bed.length_ft && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground" style={nameStyle}>
+                            {bed.width_ft} × {bed.length_ft} ft
+                          </span>
+                        )}
+                        {bed.sun_exposure_override && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary" style={nameStyle}>
+                            {bed.sun_exposure_override}
+                          </span>
+                        )}
+                        {bed.is_locked && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground" style={nameStyle}>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
