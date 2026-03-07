@@ -43,11 +43,17 @@ function pixiColorToHex(color: number): string {
 
 const textureCache = new Map<string, Texture>()
 
+function resolveImageUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return `${window.location.protocol}//${window.location.host}${url}`
+}
+
 async function loadTexture(url: string): Promise<Texture | null> {
-  if (textureCache.has(url)) return textureCache.get(url)!
+  const resolved = resolveImageUrl(url)
+  if (textureCache.has(resolved)) return textureCache.get(resolved)!
   try {
-    const texture = await Assets.load(url)
-    textureCache.set(url, texture)
+    const texture = await Assets.load(resolved)
+    textureCache.set(resolved, texture)
     return texture
   } catch {
     return null

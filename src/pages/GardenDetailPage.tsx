@@ -291,14 +291,22 @@ export function GardenDetailPage() {
   }, [updateBedById])
 
   const handlePlantingDragEnd = useCallback((plantingId: number, x: number, y: number) => {
-    updatePlantingById.mutate({
-      plantingId,
-      data: {
-        pos_x: Math.round(x * 100) / 100,
-        pos_y: Math.round(y * 100) / 100,
-      },
-    })
-  }, [updatePlantingById])
+    const data: Record<string, number> = {
+      pos_x: Math.round(x * 100) / 100,
+      pos_y: Math.round(y * 100) / 100,
+    }
+    // Detect if the planting landed in a different bed
+    const planting = gardenPlantings.find(p => p.id === plantingId)
+    if (planting && beds) {
+      for (const bed of beds) {
+        if (bed.boundary && bed.id !== planting.bed_id && pointInPolygon({ x, y }, bed.boundary)) {
+          data.bed_id = bed.id
+          break
+        }
+      }
+    }
+    updatePlantingById.mutate({ plantingId, data })
+  }, [updatePlantingById, gardenPlantings, beds])
 
   if (gardenLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>

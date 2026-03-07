@@ -135,13 +135,16 @@ export function BedPanel({ bed, gardenId, onClose }: Props) {
           />
         </div>
 
-        {/* Dimensions */}
+        {/* Dimensions — hidden for drawn beds (boundary without dimensions) */}
         {(bed.width_ft || bed.length_ft) && (
           <div className="border-b border-border p-4">
             <p className="text-xs text-muted-foreground">Dimensions</p>
             <p className="text-sm text-foreground">
               {bed.width_ft ?? '—'} × {bed.length_ft ?? '—'} ft
             </p>
+            {bed.is_locked && (
+              <p className="mt-1 text-xs text-muted-foreground italic">Unlock to resize</p>
+            )}
           </div>
         )}
 
