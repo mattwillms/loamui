@@ -108,6 +108,25 @@ interface GardenCanvasProps {
   selectedPlantingId?: number | null
   selectedBedId?: number | null
   newPlantingId?: number | null
+  onDismiss?: () => void
+}
+
+// ── Canvas click area (dismiss panels) ──────────────────────────────────────
+
+function CanvasClickArea({ width, height, onClick }: {
+  width: number; height: number; onClick: () => void
+}) {
+  return (
+    <pixiGraphics
+      draw={useCallback((g: import('pixi.js').Graphics) => {
+        g.clear()
+        g.rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.001 })
+      }, [width, height])}
+      eventMode="static"
+      cursor="default"
+      onPointerDown={useCallback(() => onClick(), [onClick])}
+    />
+  )
 }
 
 // ── Background grid ──────────────────────────────────────────────────────────
@@ -616,6 +635,7 @@ function StageContent({
   selectedPlantingId,
   selectedBedId,
   newPlantingId,
+  onDismiss,
   stageWidth,
   stageHeight,
   pixelsPerFoot,
@@ -642,6 +662,7 @@ function StageContent({
 
   return (
     <>
+      {onDismiss && <CanvasClickArea width={stageWidth} height={stageHeight} onClick={onDismiss} />}
       <BackgroundGrid width={stageWidth} height={stageHeight} pixelsPerFoot={pixelsPerFoot} />
 
       {/* Beds */}

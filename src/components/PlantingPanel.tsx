@@ -227,6 +227,7 @@ export function PlantingPanel({ planting, bedId, gardenId, bedName, onClose }: P
     <>
     <div className="fixed inset-0 z-20" onClick={onClose} />
     <div
+      data-panel=""
       className={`fixed right-0 bottom-0 z-30 flex w-80 flex-col bg-card border-l border-border shadow-xl transition-transform duration-300 ${visible ? 'translate-x-0' : 'translate-x-full'}`}
       style={{ top: '56px' }}
     >

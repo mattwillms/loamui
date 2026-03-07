@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { AlertTriangle, Pencil, ChevronRight, ChevronDown, Trash2, PenLine, RectangleHorizontal, Leaf } from 'lucide-react'
 import { toast } from 'sonner'
@@ -80,6 +80,23 @@ export function GardenDetailPage() {
   const [pendingBedBoundary, setPendingBedBoundary] = useState<Array<{x: number, y: number}> | null>(null)
   const [newBedNameDialogOpen, setNewBedNameDialogOpen] = useState(false)
   const [newBedName, setNewBedName] = useState('')
+
+  // Canvas container ref for outside-click detection
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      const target = e.target as Node
+      const inCanvas = canvasContainerRef.current?.contains(target)
+      const inPanel = document.querySelector('[data-panel]')?.contains(target)
+      if (!inCanvas && !inPanel) {
+        setSelectedPlanting(null)
+        setSelectedBed(null)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [])
 
   // Lock state
   const [lockedBeds, setLockedBeds] = useState<Set<number>>(new Set())
@@ -438,6 +455,7 @@ export function GardenDetailPage() {
               </span>
             </div>
 
+            <div ref={canvasContainerRef}>
             <Suspense fallback={<p className="text-sm text-muted-foreground">Loading canvas…</p>}>
               <GardenCanvas
                 garden={garden}
@@ -445,6 +463,7 @@ export function GardenDetailPage() {
                 plantings={gardenPlantings}
                 onPlantingSelect={handlePlantingSelect}
                 onBedSelect={handleBedSelect}
+                onDismiss={() => { setSelectedPlanting(null); setSelectedBed(null) }}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
                 lockedBeds={lockedBeds}
@@ -456,6 +475,7 @@ export function GardenDetailPage() {
                 newPlantingId={newPlantingId}
               />
             </Suspense>
+            </div>
           </>
         )}
       </div>
