@@ -447,6 +447,8 @@ export function GardenDetailPage() {
                 lockedPlantings={lockedPlantings}
                 onBedDragEnd={handleBedDragEnd}
                 onPlantingDragEnd={handlePlantingDragEnd}
+                selectedPlantingId={selectedPlanting?.id}
+                selectedBedId={selectedBed?.id}
               />
             </Suspense>
           </>

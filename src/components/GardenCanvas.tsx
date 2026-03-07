@@ -63,6 +63,8 @@ interface GardenCanvasProps {
   lockedPlantings: Set<number>
   onBedDragEnd: (bedId: number, newBoundary: Array<{x: number, y: number}>) => void
   onPlantingDragEnd: (plantingId: number, x: number, y: number) => void
+  selectedPlantingId?: number | null
+  selectedBedId?: number | null
 }
 
 // ── Background grid ──────────────────────────────────────────────────────────
@@ -89,12 +91,14 @@ function BedPolygon({
   bed,
   pixelsPerFoot,
   locked,
+  selected,
   onDragEnd,
   onSelect,
 }: {
   bed: Bed
   pixelsPerFoot: number
   locked: boolean
+  selected: boolean
   onDragEnd: (newBoundary: Array<{x: number, y: number}>) => void
   onSelect: () => void
 }) {
@@ -138,7 +142,11 @@ function BedPolygon({
     const flat = pts.flatMap(p => [p.x, p.y])
     g.poly(flat).fill({ color: fillColor, alpha: locked ? 0.4 : 0.5 })
     g.poly(flat).stroke({ color: strokeColor, width: locked ? 3 : 2 })
-  }, [displayBoundary, pixelsPerFoot, locked, fillColor, strokeColor])
+    if (selected) {
+      g.poly(flat).stroke({ color: 0x4a7c59, width: 4 })
+      g.poly(flat).stroke({ color: 0xffffff, width: 2 })
+    }
+  }, [displayBoundary, pixelsPerFoot, locked, fillColor, strokeColor, selected])
 
   // Label background pill
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
@@ -249,6 +257,7 @@ function PlantMarker({
   planting,
   pixelsPerFoot,
   locked,
+  selected,
   onSelect,
   onDragEnd,
   onDragStart,
@@ -258,6 +267,7 @@ function PlantMarker({
   planting: GardenPlanting
   pixelsPerFoot: number
   locked: boolean
+  selected: boolean
   onSelect: () => void
   onDragEnd: (x: number, y: number) => void
   onDragStart: () => void
@@ -316,7 +326,6 @@ function PlantMarker({
   const displayY = baseY + (draggingRef.current ? dragOffset.y : 0)
 
   const RADIUS = 20
-  const initial = (planting.common_name ?? '?')[0].toUpperCase()
 
   const baseDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
@@ -336,6 +345,26 @@ function PlantMarker({
   const borderDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     g.circle(0, 0, RADIUS).stroke({ color: 0x2d2d2d, width: 2 })
+    if (selected) {
+      g.circle(0, 0, 24).stroke({ color: 0xffffff, width: 2.5 })
+      g.circle(0, 0, 26).stroke({ color: 0x4a7c59, width: 1.5 })
+    }
+  }, [selected])
+
+  const sproutDraw = useCallback((g: import('pixi.js').Graphics) => {
+    g.clear()
+    // Stem
+    g.moveTo(0, 8).lineTo(0, -2).stroke({ color: 0xffffff, width: 2 })
+    // Left leaf
+    g.moveTo(0, 2)
+      .bezierCurveTo(-10, -2, -12, -10, -6, -14)
+      .bezierCurveTo(-4, -8, -2, -4, 0, 2)
+      .fill({ color: 0xffffff, alpha: 0.9 })
+    // Right leaf
+    g.moveTo(0, 2)
+      .bezierCurveTo(10, -2, 12, -10, 6, -14)
+      .bezierCurveTo(4, -8, 2, -4, 0, 2)
+      .fill({ color: 0xffffff, alpha: 0.9 })
   }, [])
 
   // Label background pill
@@ -421,12 +450,8 @@ function PlantMarker({
           <pixiGraphics draw={tintDraw} />
         </>
       ) : (
-        /* Fallback: initial letter centered */
-        <pixiText
-          text={initial}
-          anchor={0.5}
-          style={{ fontSize: 14, fontWeight: 'bold', fill: 0xffffff }}
-        />
+        /* Fallback: sprout icon */
+        <pixiGraphics draw={sproutDraw} />
       )}
       {/* 3. Border on top always */}
       <pixiGraphics draw={borderDraw} />
@@ -559,6 +584,8 @@ function StageContent({
   lockedPlantings,
   onBedDragEnd,
   onPlantingDragEnd,
+  selectedPlantingId,
+  selectedBedId,
   stageWidth,
   stageHeight,
   pixelsPerFoot,
@@ -604,6 +631,7 @@ function StageContent({
           bed={bed}
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedBeds.has(bed.id)}
+          selected={selectedBedId === bed.id}
           onDragEnd={(newBoundary) => onBedDragEnd(bed.id, newBoundary)}
           onSelect={() => onBedSelect(bed)}
         />
@@ -624,6 +652,7 @@ function StageContent({
           planting={p}
           pixelsPerFoot={pixelsPerFoot}
           locked={lockedPlantings.has(p.id)}
+          selected={selectedPlantingId === p.id}
           onSelect={() => onPlantingSelect(p)}
           onDragEnd={(x, y) => {
             setDraggingPlantingId(null)
