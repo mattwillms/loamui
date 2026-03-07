@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { AlertTriangle, Pencil, ChevronRight, ChevronDown, Trash2, PenLine, RectangleHorizontal, Leaf } from 'lucide-react'
+import { AlertTriangle, Pencil, ChevronRight, ChevronDown, Trash2, PenLine, Plus, RectangleHorizontal, Leaf } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
