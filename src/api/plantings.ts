@@ -76,6 +76,20 @@ export function useCreateGardenPlanting(gardenId: number) {
   })
 }
 
+export function useUpdatePlantingById(gardenId: number) {
+  const queryClient = useQueryClient()
+  return useMutation<Planting, Error, { plantingId: number; data: Partial<Planting> }>({
+    mutationFn: async ({ plantingId, data }) => {
+      const response = await apiClient.patch(`/plantings/${plantingId}`, data)
+      return response.data
+    },
+    onSuccess: (planting) => {
+      queryClient.invalidateQueries({ queryKey: ['beds', planting.bed_id, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+    },
+  })
+}
+
 export function useCreateWateringLog() {
   return useMutation({
     mutationFn: (data: WateringLogCreate) =>

@@ -48,3 +48,17 @@ export function useUpdateBed(id: number) {
     },
   })
 }
+
+export function useUpdateBedById(gardenId: number) {
+  const queryClient = useQueryClient()
+  return useMutation<Bed, Error, { bedId: number; data: BedUpdate }>({
+    mutationFn: async ({ bedId, data }) => {
+      const response = await apiClient.patch(`/beds/${bedId}`, data)
+      return response.data
+    },
+    onSuccess: (bed) => {
+      queryClient.invalidateQueries({ queryKey: ['beds', bed.id] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'beds'] })
+    },
+  })
+}

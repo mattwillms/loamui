@@ -8,6 +8,7 @@ export interface Bed {
   soil_amendments: string | null
   notes: string | null
   boundary: Array<{x: number, y: number}> | null
+  is_locked: boolean
   created_at: string
   updated_at: string
 }
@@ -20,6 +21,7 @@ export interface BedCreate {
   soil_amendments?: string
   notes?: string
   boundary?: Array<{x: number, y: number}> | null
+  is_locked?: boolean
 }
 
 export interface BedUpdate {
@@ -30,4 +32,5 @@ export interface BedUpdate {
   soil_amendments?: string
   notes?: string
   boundary?: Array<{x: number, y: number}> | null
+  is_locked?: boolean
 }

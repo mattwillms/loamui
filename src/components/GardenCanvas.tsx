@@ -31,6 +31,10 @@ interface GardenCanvasProps {
   onCanvasClick: (x: number, y: number) => void
   drawMode: boolean
   onBedDrawn: (boundary: Array<{x: number, y: number}>) => void
+  lockedBeds: Set<number>
+  lockedPlantings: Set<number>
+  onBedDragEnd: (bedId: number, dx: number, dy: number) => void
+  onPlantingDragEnd: (plantingId: number, x: number, y: number) => void
 }
 
 // ── Background grid ──────────────────────────────────────────────────────────
@@ -53,17 +57,31 @@ function BackgroundGrid({ width, height, pixelsPerFoot }: { width: number; heigh
 
 // ── Bed polygon ──────────────────────────────────────────────────────────────
 
-function BedPolygon({ bed, pixelsPerFoot }: { bed: Bed; pixelsPerFoot: number }) {
+function BedPolygon({
+  bed,
+  pixelsPerFoot,
+  locked,
+  onDragEnd,
+}: {
+  bed: Bed
+  pixelsPerFoot: number
+  locked: boolean
+  onDragEnd: (dx: number, dy: number) => void
+}) {
   const boundary = bed.boundary
   if (!boundary || boundary.length < 3) return null
+
+  const dragStartRef = useRef<{x: number, y: number} | null>(null)
+  const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
+  const draggingRef = useRef(false)
 
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     const pts = boundary.map(v => ({ x: v.x * pixelsPerFoot, y: v.y * pixelsPerFoot }))
     const flat = pts.flatMap(p => [p.x, p.y])
     g.poly(flat).fill({ color: 0xC4956A, alpha: 0.5 })
-    g.poly(flat).stroke({ color: 0x8B6347, width: 2 })
-  }, [boundary, pixelsPerFoot])
+    g.poly(flat).stroke({ color: locked ? 0x666666 : 0x8B6347, width: 2 })
+  }, [boundary, pixelsPerFoot, locked])
 
   // Center label in bounding box
   const xs = boundary.map(v => v.x * pixelsPerFoot)
@@ -71,8 +89,42 @@ function BedPolygon({ bed, pixelsPerFoot }: { bed: Bed; pixelsPerFoot: number })
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2
 
+  const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
+    if (locked) return
+    e.stopPropagation()
+    dragStartRef.current = { x: e.global.x, y: e.global.y }
+    draggingRef.current = false
+  }, [locked])
+
+  const handlePointerMove = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
+    if (!dragStartRef.current) return
+    const dx = e.global.x - dragStartRef.current.x
+    const dy = e.global.y - dragStartRef.current.y
+    if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 3) return
+    draggingRef.current = true
+    setDragOffset({ x: dx, y: dy })
+  }, [])
+
+  const handlePointerUp = useCallback(() => {
+    if (draggingRef.current) {
+      onDragEnd(dragOffset.x / pixelsPerFoot, dragOffset.y / pixelsPerFoot)
+    }
+    dragStartRef.current = null
+    draggingRef.current = false
+    setDragOffset({ x: 0, y: 0 })
+  }, [dragOffset, pixelsPerFoot, onDragEnd])
+
   return (
-    <pixiContainer>
+    <pixiContainer
+      x={dragOffset.x}
+      y={dragOffset.y}
+      eventMode="static"
+      cursor={locked ? 'default' : 'grab'}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerUpOutside={handlePointerUp}
+    >
       <pixiGraphics draw={draw} />
       <pixiText
         text={bed.name}
@@ -116,11 +168,17 @@ function PlantFootprint({ planting, pixelsPerFoot }: { planting: GardenPlanting;
 function PlantMarker({
   planting,
   pixelsPerFoot,
+  locked,
   onSelect,
+  onDragEnd,
+  justSelectedRef,
 }: {
   planting: GardenPlanting
   pixelsPerFoot: number
+  locked: boolean
   onSelect: () => void
+  onDragEnd: (x: number, y: number) => void
+  justSelectedRef: React.MutableRefObject<boolean>
 }) {
   if (planting.pos_x == null || planting.pos_y == null) return null
 
@@ -130,25 +188,58 @@ function PlantMarker({
   const sy = planting.pos_y * pixelsPerFoot
   const label = (planting.common_name ?? '?').split(' ')[0]
 
+  const dragStartRef = useRef<{x: number, y: number} | null>(null)
+  const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
+  const draggingRef = useRef(false)
+
   const draw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     g.circle(0, 0, 10).fill(color)
-    g.circle(0, 0, 10).stroke({ color: 0x2d2d2d, width: 1.5 })
-  }, [color])
+    g.circle(0, 0, 10).stroke({ color: locked ? 0x666666 : 0x2d2d2d, width: locked ? 2 : 1.5 })
+  }, [color, locked])
+
+  const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
+    e.stopPropagation()
+    justSelectedRef.current = true
+    dragStartRef.current = { x: e.global.x, y: e.global.y }
+    draggingRef.current = false
+  }, [justSelectedRef])
+
+  const handlePointerMove = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
+    if (!dragStartRef.current || locked) return
+    const dx = e.global.x - dragStartRef.current.x
+    const dy = e.global.y - dragStartRef.current.y
+    if (!draggingRef.current && Math.abs(dx) + Math.abs(dy) < 3) return
+    draggingRef.current = true
+    setDragOffset({ x: dx, y: dy })
+  }, [locked])
+
+  const handlePointerUp = useCallback(() => {
+    if (draggingRef.current) {
+      const newX = (sx + dragOffset.x) / pixelsPerFoot
+      const newY = (sy + dragOffset.y) / pixelsPerFoot
+      onDragEnd(newX, newY)
+    } else {
+      onSelect()
+    }
+    dragStartRef.current = null
+    draggingRef.current = false
+    setDragOffset({ x: 0, y: 0 })
+  }, [sx, sy, dragOffset, pixelsPerFoot, onDragEnd, onSelect])
 
   return (
     <pixiContainer
-      x={sx}
-      y={sy}
+      x={sx + dragOffset.x}
+      y={sy + dragOffset.y}
       scale={hovered ? 1.15 : 1}
       eventMode="static"
-      cursor="pointer"
+      cursor={locked ? 'pointer' : 'grab'}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
-      onPointerDown={(e: import('pixi.js').FederatedPointerEvent) => {
-        e.stopPropagation()
-        onSelect()
-      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerUpOutside={handlePointerUp}
     >
       <pixiGraphics draw={draw} />
       <pixiText
@@ -238,17 +329,23 @@ function CanvasClickArea({
   height,
   pixelsPerFoot,
   onClick,
+  justSelectedRef,
 }: {
   width: number
   height: number
   pixelsPerFoot: number
   onClick: (x: number, y: number) => void
+  justSelectedRef: React.MutableRefObject<boolean>
 }) {
   const handleClick = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false
+      return
+    }
     const x = e.global.x / pixelsPerFoot
     const y = e.global.y / pixelsPerFoot
     onClick(x, y)
-  }, [pixelsPerFoot, onClick])
+  }, [pixelsPerFoot, onClick, justSelectedRef])
 
   return (
     <pixiGraphics
@@ -272,11 +369,16 @@ function StageContent({
   onCanvasClick,
   drawMode,
   onBedDrawn,
+  lockedBeds,
+  lockedPlantings,
+  onBedDragEnd,
+  onPlantingDragEnd,
   stageWidth,
   stageHeight,
   pixelsPerFoot,
 }: Omit<GardenCanvasProps, 'garden'> & { stageWidth: number; stageHeight: number; pixelsPerFoot: number }) {
   const [drawVertices, setDrawVertices] = useState<Array<{x: number, y: number}>>([])
+  const justSelectedRef = useRef(false)
 
   function handleVertexAdd(x: number, y: number) {
     setDrawVertices(prev => [...prev, { x, y }])
@@ -300,7 +402,13 @@ function StageContent({
 
       {/* Beds */}
       {beds.map(bed => (
-        <BedPolygon key={bed.id} bed={bed} pixelsPerFoot={pixelsPerFoot} />
+        <BedPolygon
+          key={bed.id}
+          bed={bed}
+          pixelsPerFoot={pixelsPerFoot}
+          locked={lockedBeds.has(bed.id)}
+          onDragEnd={(dx, dy) => onBedDragEnd(bed.id, dx, dy)}
+        />
       ))}
 
       {/* Footprints */}
@@ -314,7 +422,10 @@ function StageContent({
           key={`pm-${p.id}`}
           planting={p}
           pixelsPerFoot={pixelsPerFoot}
+          locked={lockedPlantings.has(p.id)}
           onSelect={() => onPlantingSelect(p)}
+          onDragEnd={(x, y) => onPlantingDragEnd(p.id, x, y)}
+          justSelectedRef={justSelectedRef}
         />
       ))}
 
@@ -332,6 +443,7 @@ function StageContent({
           height={stageHeight}
           pixelsPerFoot={pixelsPerFoot}
           onClick={onCanvasClick}
+          justSelectedRef={justSelectedRef}
         />
       )}
     </>

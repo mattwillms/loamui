@@ -1,11 +1,12 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router'
-import { Pencil, Plus, ChevronRight, Trash2, PenLine } from 'lucide-react'
+import { AlertTriangle, Pencil, Plus, ChevronRight, Trash2, PenLine } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -14,12 +15,12 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useGarden, useDeleteGarden, useUpdateGarden, useGardenPlantings } from '@/api/gardens'
-import { useBeds, useCreateBed, useUpdateBed } from '@/api/beds'
+import { useBeds, useCreateBed, useUpdateBed, useUpdateBedById } from '@/api/beds'
 import { useGardenSoil } from '@/api/soil'
-import { useCreateGardenPlanting, usePlanting } from '@/api/plantings'
+import { useCreateGardenPlanting, usePlanting, useUpdatePlantingById } from '@/api/plantings'
 import { PlantPicker } from '@/components/PlantPicker'
 import { PlantingPanel } from '@/components/PlantingPanel'
-import { pointInPolygon } from '@/lib/geometry'
+import { pointInPolygon, rectBoundary } from '@/lib/geometry'
 import type { Bed } from '@/types/bed'
 import type { GardenPlanting } from '@/types/garden'
 import type { PlantSummary } from '@/types/plant'
@@ -38,6 +39,8 @@ export function GardenDetailPage() {
   const deleteGarden = useDeleteGarden(gardenId)
   const updateGarden = useUpdateGarden(gardenId)
   const createGardenPlanting = useCreateGardenPlanting(gardenId)
+  const updateBedById = useUpdateBedById(gardenId)
+  const updatePlantingById = useUpdatePlantingById(gardenId)
 
   const hasLocation = !!(garden?.latitude || garden?.longitude)
   const { data: soil, isLoading: soilLoading, isError: soilError } = useGardenSoil(gardenId, hasLocation)
@@ -66,6 +69,7 @@ export function GardenDetailPage() {
   const [editBedNotes, setEditBedNotes] = useState('')
   const [editBedWidth, setEditBedWidth] = useState('')
   const [editBedLength, setEditBedLength] = useState('')
+  const [editBedLocked, setEditBedLocked] = useState(false)
   const updateBed = useUpdateBed(editingBed?.id ?? 0)
 
   // Canvas state
@@ -77,10 +81,37 @@ export function GardenDetailPage() {
   const [newBedNameDialogOpen, setNewBedNameDialogOpen] = useState(false)
   const [newBedName, setNewBedName] = useState('')
 
+  // Lock state
+  const [lockedBeds, setLockedBeds] = useState<Set<number>>(new Set())
+  const [lockedPlantings, setLockedPlantings] = useState<Set<number>>(new Set())
+
+  // Init lock state from DB
+  useEffect(() => {
+    if (beds) {
+      setLockedBeds(new Set(beds.filter(b => b.is_locked).map(b => b.id)))
+    }
+  }, [beds])
+
+  useEffect(() => {
+    if (gardenPlantings) {
+      setLockedPlantings(new Set(gardenPlantings.filter(p => p.is_locked).map(p => p.id)))
+    }
+  }, [gardenPlantings])
+
   // Fetch full planting for PlantingPanel
   const { data: fullPlanting } = usePlanting(selectedPlanting?.id ?? 0)
 
   const hasCanvas = !!(garden?.canvas_width_ft && garden?.canvas_height_ft)
+
+  // Out-of-bounds detection
+  const outOfBoundsPlantings = hasCanvas
+    ? gardenPlantings.filter(p => {
+        if (p.pos_x == null || p.pos_y == null) return false
+        return p.pos_x < 0 || p.pos_y < 0
+          || p.pos_x > garden!.canvas_width_ft!
+          || p.pos_y > garden!.canvas_height_ft!
+      })
+    : []
 
   function openEditDialog() {
     if (!garden) return
@@ -99,17 +130,28 @@ export function GardenDetailPage() {
     setEditBedNotes(bed.notes ?? '')
     setEditBedWidth(bed.width_ft !== null ? String(bed.width_ft) : '')
     setEditBedLength(bed.length_ft !== null ? String(bed.length_ft) : '')
+    setEditBedLocked(bed.is_locked)
     setEditBedDialogOpen(true)
   }
 
   async function handleCreateBed(e: React.FormEvent) {
     e.preventDefault()
     if (!bedName.trim()) return
+    const w = bedWidth !== '' ? parseFloat(bedWidth) : undefined
+    const l = bedLength !== '' ? parseFloat(bedLength) : undefined
+
+    // Compute stagger offset so new beds don't stack at (0,0)
+    const bedCount = beds?.length ?? 0
+    const ox = bedCount * 2
+    const oy = bedCount * 2
+    const boundary = w && l ? rectBoundary(w, l, ox, oy) : undefined
+
     await createBed.mutateAsync({
       name: bedName.trim(),
       notes: bedNotes.trim() || undefined,
-      width_ft: bedWidth !== '' ? parseFloat(bedWidth) : undefined,
-      length_ft: bedLength !== '' ? parseFloat(bedLength) : undefined,
+      width_ft: w,
+      length_ft: l,
+      boundary,
     })
     setBedName('')
     setBedNotes('')
@@ -126,6 +168,7 @@ export function GardenDetailPage() {
       notes: editBedNotes.trim() || undefined,
       width_ft: editBedWidth !== '' ? parseFloat(editBedWidth) : undefined,
       length_ft: editBedLength !== '' ? parseFloat(editBedLength) : undefined,
+      is_locked: editBedLocked,
     })
     setEditBedDialogOpen(false)
   }
@@ -198,6 +241,27 @@ export function GardenDetailPage() {
     setPendingBedBoundary(null)
   }
 
+  // Drag handlers
+  const handleBedDragEnd = useCallback((bedId: number, dx: number, dy: number) => {
+    const bed = beds?.find(b => b.id === bedId)
+    if (!bed?.boundary) return
+    const newBoundary = bed.boundary.map(v => ({
+      x: Math.round((v.x + dx) * 100) / 100,
+      y: Math.round((v.y + dy) * 100) / 100,
+    }))
+    updateBedById.mutate({ bedId, data: { boundary: newBoundary } })
+  }, [beds, updateBedById])
+
+  const handlePlantingDragEnd = useCallback((plantingId: number, x: number, y: number) => {
+    updatePlantingById.mutate({
+      plantingId,
+      data: {
+        pos_x: Math.round(x * 100) / 100,
+        pos_y: Math.round(y * 100) / 100,
+      },
+    })
+  }, [updatePlantingById])
+
   if (gardenLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>
   }
@@ -266,6 +330,17 @@ export function GardenDetailPage() {
         </div>
       </div>
 
+      {/* Out-of-bounds warning */}
+      {outOfBoundsPlantings.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            {outOfBoundsPlantings.length} planting{outOfBoundsPlantings.length > 1 ? 's are' : ' is'} outside the canvas bounds.
+            Resize the garden or drag {outOfBoundsPlantings.length > 1 ? 'them' : 'it'} back inside.
+          </p>
+        </div>
+      )}
+
       {/* Garden Designer */}
       <div>
         <h2 className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -321,6 +396,10 @@ export function GardenDetailPage() {
                 onCanvasClick={handleCanvasClick}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
+                lockedBeds={lockedBeds}
+                lockedPlantings={lockedPlantings}
+                onBedDragEnd={handleBedDragEnd}
+                onPlantingDragEnd={handlePlantingDragEnd}
               />
             </Suspense>
           </>
@@ -383,6 +462,11 @@ export function GardenDetailPage() {
                       {bed.sun_exposure_override && (
                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
                           {bed.sun_exposure_override}
+                        </span>
+                      )}
+                      {bed.is_locked && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          Locked
                         </span>
                       )}
                     </div>
@@ -699,6 +783,14 @@ export function GardenDetailPage() {
                 placeholder="Any notes about this bed"
                 value={editBedNotes}
                 onChange={(e) => setEditBedNotes(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="edit-bed-locked">Lock position</Label>
+              <Switch
+                id="edit-bed-locked"
+                checked={editBedLocked}
+                onCheckedChange={setEditBedLocked}
               />
             </div>
             <DialogFooter>

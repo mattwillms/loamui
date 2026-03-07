@@ -55,5 +55,6 @@ export interface GardenPlanting {
   pos_y: number | null
   plant_type: string | null
   spacing_inches: number | null
+  is_locked: boolean
   plant?: PlantingPlantSummary
 }

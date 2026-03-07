@@ -12,3 +12,17 @@ export function pointInPolygon(
   }
   return inside
 }
+
+export function rectBoundary(
+  w: number,
+  h: number,
+  ox = 0,
+  oy = 0,
+): Array<{x: number, y: number}> {
+  return [
+    { x: ox, y: oy },
+    { x: ox + w, y: oy },
+    { x: ox + w, y: oy + h },
+    { x: ox, y: oy + h },
+  ]
+}
