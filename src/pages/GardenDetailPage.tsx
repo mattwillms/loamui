@@ -20,7 +20,7 @@ import { useCreateGardenPlanting, usePlanting, useUpdatePlantingById } from '@/a
 import { PlantPicker } from '@/components/PlantPicker'
 import { PlantingPanel } from '@/components/PlantingPanel'
 import { BedPanel } from '@/components/BedPanel'
-import { pointInPolygon, rectBoundary } from '@/lib/geometry'
+import { pointInPolygon, polygonArea, rectBoundary } from '@/lib/geometry'
 import { darkenHex } from '@/lib/colors'
 import type { Bed } from '@/types/bed'
 import type { GardenPlanting } from '@/types/garden'
@@ -459,6 +459,13 @@ export function GardenDetailPage() {
                 backgroundColor: bedColor + '18',
                 borderColor: darkenHex(bedColor, 0.65),
               }
+              const isDrawn = bed.boundary != null && bed.width_ft == null && bed.length_ft == null
+              const sqft = (() => {
+                if (bed.width_ft && bed.length_ft) return bed.width_ft * bed.length_ft
+                if (bed.boundary && bed.boundary.length >= 3) return Math.round(polygonArea(bed.boundary))
+                return null
+              })()
+              const plantCount = gardenPlantings.filter(p => p.bed_id === bed.id).length
               return (
                 <Link key={bed.id} to={`/beds/${bed.id}`} className="block">
                   <Card className="cursor-pointer transition-shadow hover:shadow-md" style={cardStyle}>
@@ -490,6 +497,21 @@ export function GardenDetailPage() {
                         {bed.is_locked && (
                           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                             Locked
+                          </span>
+                        )}
+                        {isDrawn && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            Custom shape
+                          </span>
+                        )}
+                        {sqft !== null && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {sqft} sq ft
+                          </span>
+                        )}
+                        {plantCount > 0 && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {plantCount} {plantCount === 1 ? 'plant' : 'plants'}
                           </span>
                         )}
                       </div>
