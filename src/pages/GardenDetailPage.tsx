@@ -83,7 +83,6 @@ export function GardenDetailPage() {
 
   // Canvas container ref for outside-click detection
   const canvasContainerRef = useRef<HTMLDivElement>(null)
-  const pendingSelectionRef = useRef(false)
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
@@ -482,11 +481,7 @@ export function GardenDetailPage() {
                 plantings={gardenPlantings}
                 onPlantingSelect={handlePlantingSelect}
                 onBedSelect={handleBedSelect}
-                onDismiss={() => {
-                  if (pendingSelectionRef.current) return
-                  setSelectedPlanting(null)
-                  setSelectedBed(null)
-                }}
+                onDismiss={() => { setSelectedPlanting(null); setSelectedBed(null) }}
                 drawMode={drawMode}
                 onBedDrawn={handleBedDrawn}
                 lockedBeds={lockedBeds}
@@ -496,8 +491,6 @@ export function GardenDetailPage() {
                 selectedPlantingId={selectedPlanting?.id}
                 selectedBedId={selectedBed?.id}
                 newPlantingId={newPlantingId}
-                onPlantingPointerDown={() => { pendingSelectionRef.current = true; setTimeout(() => { pendingSelectionRef.current = false }, 100) }}
-                onBedPointerDown={() => { pendingSelectionRef.current = true; setTimeout(() => { pendingSelectionRef.current = false }, 100) }}
               />
             </Suspense>
             </div>
