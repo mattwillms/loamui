@@ -28,11 +28,15 @@ function hexToPixi(hex: string | null | undefined): number | null {
   return parseInt(hex.replace('#', ''), 16)
 }
 
-function darkenPixiColor(color: number, factor = 0.6): number {
-  const r = Math.round(((color >> 16) & 0xff) * factor)
-  const g = Math.round(((color >> 8) & 0xff) * factor)
-  const b = Math.round((color & 0xff) * factor)
+function darkenPixiColor(color: number, factor = 0.55): number {
+  const r = Math.floor(((color >> 16) & 0xff) * factor)
+  const g = Math.floor(((color >> 8) & 0xff) * factor)
+  const b = Math.floor((color & 0xff) * factor)
   return (r << 16) | (g << 8) | b
+}
+
+function pixiColorToHex(color: number): string {
+  return '#' + color.toString(16).padStart(6, '0')
 }
 
 // ── Texture cache ────────────────────────────────────────────────────────────
@@ -182,12 +186,13 @@ function BedPolygon({
   }, [displayBoundary, pixelsPerFoot, locked, fillColor, strokeColor, selected])
 
   // Label background pill
-  const pillWidth = labelText.length * 7.5 + 16
+  const pillWidth = labelText.length * 7.5 + 16 + (locked ? 20 : 0)
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     const pw = pillWidth
     const ph = 22
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).fill({ color: 0xffffff, alpha: 0.85 })
+    g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).stroke({ color: 0xb0a898, width: 1 })
   }, [pillWidth])
 
   const [lockTexture, setLockTexture] = useState<Texture | null>(null)
@@ -260,24 +265,25 @@ function BedPolygon({
       {/* Label with white pill background */}
       <pixiContainer x={cx} y={cy}>
         <pixiGraphics draw={pillDraw} />
+        {locked && lockTexture && (
+          <pixiSprite
+            texture={lockTexture}
+            width={14}
+            height={14}
+            x={-pillWidth / 2 + 4}
+            y={-7}
+          />
+        )}
         <pixiText
           text={labelText}
           anchor={0.5}
+          x={locked ? 9 : 0}
           style={{
             fontSize: 13,
             fill: 0x1a1a1a,
           }}
         />
       </pixiContainer>
-      {locked && lockTexture && (
-        <pixiSprite
-          texture={lockTexture}
-          width={14}
-          height={14}
-          x={cx - pillWidth / 2 - 18}
-          y={cy - 7}
-        />
-      )}
     </pixiContainer>
   )
 }
@@ -329,13 +335,12 @@ function PlantMarker({
   const [hovered, setHovered] = useState(false)
   const [texture, setTexture] = useState<Texture | null>(null)
   const color = hexToPixi(planting.color) ?? getColor(planting.plant_type)
+  const borderColor = darkenPixiColor(color)
   const firstName = (planting.common_name ?? '?').split(' ')[0]
   const label = firstName
 
   const [sproutTexture, setSproutTexture] = useState<Texture | null>(null)
   const [lockTexture, setLockTexture] = useState<Texture | null>(null)
-  const maskRef = useRef<import('pixi.js').Graphics | null>(null)
-  const spriteRef = useRef<import('pixi.js').Sprite | null>(null)
 
   const dragStartRef = useRef<{x: number, y: number} | null>(null)
   const [dragOffset, setDragOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
@@ -353,21 +358,14 @@ function PlantMarker({
 
   // Load icon textures
   useEffect(() => {
-    getIconTexture('sprout', 24, '#ffffff').then(setSproutTexture)
-  }, [])
+    getIconTexture('sprout', 24, pixiColorToHex(borderColor)).then(setSproutTexture)
+  }, [borderColor])
 
   useEffect(() => {
     if (locked) {
-      getIconTexture('lock', 14, '#ffffff').then(setLockTexture)
+      getIconTexture('lock', 12, '#1a1a1a').then(setLockTexture)
     }
   }, [locked])
-
-  // Apply mask imperatively when both refs are set
-  useEffect(() => {
-    if (spriteRef.current && maskRef.current) {
-      spriteRef.current.mask = maskRef.current
-    }
-  }, [texture])
 
   // Pending position to prevent snap-back
   const [pendingPos, setPendingPos] = useState<{x: number, y: number} | null>(null)
@@ -394,33 +392,29 @@ function PlantMarker({
     g.circle(0, 0, RADIUS).fill(color)
   }, [color])
 
-  const maskDraw = useCallback((g: import('pixi.js').Graphics) => {
-    g.clear()
-    g.circle(0, 0, RADIUS).fill(0xffffff)
-  }, [])
-
   const tintDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    g.circle(0, 0, RADIUS).fill({ color, alpha: 0.3 })
+    g.circle(0, 0, RADIUS).fill({ color, alpha: 0.25 })
   }, [color])
 
   const borderDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    g.circle(0, 0, RADIUS).stroke({ color: 0x2d2d2d, width: 2 })
+    g.circle(0, 0, RADIUS).stroke({ color: borderColor, width: 2 })
     if (selected) {
       g.circle(0, 0, 24).stroke({ color: 0xffffff, width: 2.5 })
       g.circle(0, 0, 26).stroke({ color: 0x4a7c59, width: 1.5 })
     }
-  }, [selected])
+  }, [borderColor, selected])
 
   // Label background pill
+  const plantPillWidth = label.length * 6.5 + 10 + (locked ? 16 : 0)
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
-    const textWidth = label.length * 6.5
-    const pw = textWidth + 10
+    const pw = plantPillWidth
     const ph = 18
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 3).fill({ color: 0xffffff, alpha: 0.85 })
-  }, [label])
+    g.roundRect(-pw / 2, -ph / 2, pw, ph, 3).stroke({ color: 0xb0a898, width: 1 })
+  }, [plantPillWidth])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
@@ -479,53 +473,34 @@ function PlantMarker({
     >
       {/* 1. Base color circle */}
       <pixiGraphics draw={baseDraw} />
-      {texture ? (
+      {/* 2. Plant image or sprout fallback */}
+      {texture && (
         <>
-          {/* 2a. Mask shape */}
-          <pixiGraphics ref={(g: import('pixi.js').Graphics | null) => { maskRef.current = g }} draw={maskDraw} />
-          {/* 2b. Sprite masked to circle */}
-          <pixiSprite
-            ref={(s: import('pixi.js').Sprite | null) => { spriteRef.current = s }}
-            texture={texture}
-            width={40}
-            height={40}
-            x={-20}
-            y={-20}
-          />
-          {/* 2c. Color tint overlay */}
+          <pixiSprite texture={texture} width={40} height={40} x={-20} y={-20} alpha={0.95} />
           <pixiGraphics draw={tintDraw} />
         </>
-      ) : (
-        /* Fallback: sprout icon */
-        sproutTexture && (
-          <pixiSprite
-            texture={sproutTexture}
-            width={24}
-            height={24}
-            x={-12}
-            y={-12}
-            alpha={0.9}
-          />
-        )
+      )}
+      {!texture && sproutTexture && (
+        <pixiSprite texture={sproutTexture} width={24} height={24} x={-12} y={-12} />
       )}
       {/* 3. Border on top always */}
       <pixiGraphics draw={borderDraw} />
-      {/* Lock icon (top-right of circle) */}
-      {locked && lockTexture && (
-        <pixiSprite
-          texture={lockTexture}
-          width={14}
-          height={14}
-          x={8}
-          y={-22}
-        />
-      )}
       {/* 4. Label with pill background */}
       <pixiContainer y={RADIUS + 8}>
         <pixiGraphics draw={pillDraw} />
+        {locked && lockTexture && (
+          <pixiSprite
+            texture={lockTexture}
+            width={12}
+            height={12}
+            x={-plantPillWidth / 2 + 3}
+            y={-6}
+          />
+        )}
         <pixiText
           text={label}
           anchor={{ x: 0.5, y: 0.5 }}
+          x={locked ? 8 : 0}
           style={{ fontSize: 11, fill: 0x2d2d2d }}
         />
       </pixiContainer>
