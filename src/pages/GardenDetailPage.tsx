@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useGarden, useDeleteGarden, useUpdateGarden, useGardenPlantings } from '@/api/gardens'
-import { useBeds, useCreateBed, useUpdateBed, useUpdateBedById } from '@/api/beds'
+import { useBeds, useCreateBed, useUpdateBedById } from '@/api/beds'
 import { useGardenSoil } from '@/api/soil'
 import { useCreateGardenPlanting, usePlanting, useUpdatePlantingById } from '@/api/plantings'
 import { PlantPicker } from '@/components/PlantPicker'
@@ -63,15 +62,6 @@ export function GardenDetailPage() {
   const [bedWidth, setBedWidth] = useState('')
   const [bedLength, setBedLength] = useState('')
 
-  // Edit bed dialog
-  const [editBedDialogOpen, setEditBedDialogOpen] = useState(false)
-  const [editingBed, setEditingBed] = useState<Bed | null>(null)
-  const [editBedName, setEditBedName] = useState('')
-  const [editBedNotes, setEditBedNotes] = useState('')
-  const [editBedWidth, setEditBedWidth] = useState('')
-  const [editBedLength, setEditBedLength] = useState('')
-  const [editBedLocked, setEditBedLocked] = useState(false)
-  const updateBed = useUpdateBed(editingBed?.id ?? 0)
 
   // Canvas state
   const [selectedPlanting, setSelectedPlanting] = useState<GardenPlanting | null>(null)
@@ -157,16 +147,6 @@ export function GardenDetailPage() {
     setEditDialogOpen(true)
   }
 
-  function openEditBedDialog(bed: Bed) {
-    setEditingBed(bed)
-    setEditBedName(bed.name)
-    setEditBedNotes(bed.notes ?? '')
-    setEditBedWidth(bed.width_ft !== null ? String(bed.width_ft) : '')
-    setEditBedLength(bed.length_ft !== null ? String(bed.length_ft) : '')
-    setEditBedLocked(bed.is_locked)
-    setEditBedDialogOpen(true)
-  }
-
   async function handleCreateBed(e: React.FormEvent) {
     e.preventDefault()
     if (!bedName.trim()) return
@@ -191,19 +171,6 @@ export function GardenDetailPage() {
     setBedWidth('')
     setBedLength('')
     setBedDialogOpen(false)
-  }
-
-  async function handleUpdateBed(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editBedName.trim()) return
-    await updateBed.mutateAsync({
-      name: editBedName.trim(),
-      notes: editBedNotes.trim() || undefined,
-      width_ft: editBedWidth !== '' ? parseFloat(editBedWidth) : undefined,
-      length_ft: editBedLength !== '' ? parseFloat(editBedLength) : undefined,
-      is_locked: editBedLocked,
-    })
-    setEditBedDialogOpen(false)
   }
 
   async function handleDeleteGarden() {
@@ -490,21 +457,7 @@ export function GardenDetailPage() {
                 <Card className="cursor-pointer transition-shadow hover:shadow-md">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-base font-medium">{bed.name}</CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          openEditBedDialog(bed)
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     {bed.notes && (
@@ -794,77 +747,6 @@ export function GardenDetailPage() {
               </Button>
               <Button type="submit" disabled={createBed.isPending}>
                 {createBed.isPending ? 'Adding…' : 'Add bed'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit bed dialog */}
-      <Dialog open={editBedDialogOpen} onOpenChange={setEditBedDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit bed</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdateBed} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-bed-name">Name</Label>
-              <Input
-                id="edit-bed-name"
-                value={editBedName}
-                onChange={(e) => setEditBedName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-bed-width">Width (ft, optional)</Label>
-                <Input
-                  id="edit-bed-width"
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  placeholder="e.g. 4"
-                  value={editBedWidth}
-                  onChange={(e) => setEditBedWidth(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-bed-length">Length (ft, optional)</Label>
-                <Input
-                  id="edit-bed-length"
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  placeholder="e.g. 8"
-                  value={editBedLength}
-                  onChange={(e) => setEditBedLength(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-bed-notes">Notes (optional)</Label>
-              <Input
-                id="edit-bed-notes"
-                placeholder="Any notes about this bed"
-                value={editBedNotes}
-                onChange={(e) => setEditBedNotes(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit-bed-locked">Lock position</Label>
-              <Switch
-                id="edit-bed-locked"
-                checked={editBedLocked}
-                onCheckedChange={setEditBedLocked}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditBedDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updateBed.isPending}>
-                {updateBed.isPending ? 'Saving…' : 'Save'}
               </Button>
             </DialogFooter>
           </form>

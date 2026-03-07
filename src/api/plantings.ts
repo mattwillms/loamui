@@ -87,9 +87,12 @@ export function useUpdatePlantingById(gardenId: number) {
       const response = await apiClient.patch(`/plantings/${plantingId}`, data)
       return response.data
     },
-    onSuccess: (planting) => {
-      queryClient.invalidateQueries({ queryKey: ['beds', planting.bed_id, 'plantings'] })
+    onSuccess: (_planting, { plantingId }) => {
       queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'plantings'] })
+      queryClient.invalidateQueries({ queryKey: ['gardens', gardenId, 'beds'] })
+      queryClient.invalidateQueries({ queryKey: ['plantings', plantingId] })
+      // Invalidate bed plantings broadly (we don't know old bed_id here)
+      queryClient.invalidateQueries({ queryKey: ['beds'] })
     },
   })
 }
