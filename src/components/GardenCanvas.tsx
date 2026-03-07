@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Assets, Container, Graphics, Sprite, Text, Texture } from 'pixi.js'
 import { Application, extend, useApplication } from '@pixi/react'
 import type { Garden } from '@/types/garden'
@@ -48,6 +48,39 @@ async function loadTexture(url: string): Promise<Texture | null> {
   } catch {
     return null
   }
+}
+
+// ── Icon texture cache ────────────────────────────────────────────────────────
+
+const iconTextureCache = new Map<string, Texture>()
+
+async function getIconTexture(icon: 'sprout' | 'lock', size: number, color: string): Promise<Texture> {
+  const key = `${icon}-${size}-${color}`
+  if (iconTextureCache.has(key)) return iconTextureCache.get(key)!
+
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  let IconComponent: React.FC<React.SVGProps<SVGSVGElement>>
+  if (icon === 'sprout') {
+    const { Sprout } = await import('lucide-react')
+    IconComponent = Sprout as unknown as React.FC<React.SVGProps<SVGSVGElement>>
+  } else {
+    const { Lock } = await import('lucide-react')
+    IconComponent = Lock as unknown as React.FC<React.SVGProps<SVGSVGElement>>
+  }
+
+  const svgString = renderToStaticMarkup(
+    React.createElement(IconComponent, {
+      width: size,
+      height: size,
+      color,
+      strokeWidth: 2,
+    } as React.SVGProps<SVGSVGElement>)
+  )
+
+  const dataUri = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`
+  const texture = await Assets.load(dataUri)
+  iconTextureCache.set(key, texture)
+  return texture
 }
 
 interface GardenCanvasProps {
@@ -157,21 +190,12 @@ function BedPolygon({
     g.roundRect(-pw / 2, -ph / 2, pw, ph, 4).fill({ color: 0xffffff, alpha: 0.85 })
   }, [pillWidth])
 
-  const lockDraw = useCallback((g: import('pixi.js').Graphics) => {
-    g.clear()
-    if (!locked) return
-    const ls = 0.5
-    const lox = -pillWidth / 2 - 14
-    const loy = -6
-    // Body
-    g.roundRect(lox + 3*ls, loy + 11*ls, 18*ls, 11*ls, 2*ls).fill(0x1a1a1a)
-    // Shackle
-    g.moveTo(lox + 7*ls, loy + 11*ls)
-      .lineTo(lox + 7*ls, loy + 7*ls)
-      .bezierCurveTo(lox + 7*ls, loy + 4*ls, lox + 17*ls, loy + 4*ls, lox + 17*ls, loy + 7*ls)
-      .lineTo(lox + 17*ls, loy + 11*ls)
-      .stroke({ color: 0x1a1a1a, width: 1.2 })
-  }, [locked, pillWidth])
+  const [lockTexture, setLockTexture] = useState<Texture | null>(null)
+  useEffect(() => {
+    if (locked) {
+      getIconTexture('lock', 14, '#1a1a1a').then(setLockTexture)
+    }
+  }, [locked])
 
   const handlePointerDown = useCallback((e: import('pixi.js').FederatedPointerEvent) => {
     e.stopPropagation()
@@ -236,7 +260,6 @@ function BedPolygon({
       {/* Label with white pill background */}
       <pixiContainer x={cx} y={cy}>
         <pixiGraphics draw={pillDraw} />
-        {locked && <pixiGraphics draw={lockDraw} />}
         <pixiText
           text={labelText}
           anchor={0.5}
@@ -246,6 +269,15 @@ function BedPolygon({
           }}
         />
       </pixiContainer>
+      {locked && lockTexture && (
+        <pixiSprite
+          texture={lockTexture}
+          width={14}
+          height={14}
+          x={cx - pillWidth / 2 - 18}
+          y={cy - 7}
+        />
+      )}
     </pixiContainer>
   )
 }
@@ -300,6 +332,8 @@ function PlantMarker({
   const firstName = (planting.common_name ?? '?').split(' ')[0]
   const label = firstName
 
+  const [sproutTexture, setSproutTexture] = useState<Texture | null>(null)
+  const [lockTexture, setLockTexture] = useState<Texture | null>(null)
   const maskRef = useRef<import('pixi.js').Graphics | null>(null)
   const spriteRef = useRef<import('pixi.js').Sprite | null>(null)
 
@@ -316,6 +350,17 @@ function PlantMarker({
       })
     }
   }, [planting.image_url])
+
+  // Load icon textures
+  useEffect(() => {
+    getIconTexture('sprout', 24, '#ffffff').then(setSproutTexture)
+  }, [])
+
+  useEffect(() => {
+    if (locked) {
+      getIconTexture('lock', 14, '#ffffff').then(setLockTexture)
+    }
+  }, [locked])
 
   // Apply mask imperatively when both refs are set
   useEffect(() => {
@@ -362,48 +407,11 @@ function PlantMarker({
   const borderDraw = useCallback((g: import('pixi.js').Graphics) => {
     g.clear()
     g.circle(0, 0, RADIUS).stroke({ color: 0x2d2d2d, width: 2 })
-    if (locked) {
-      const ls = 0.55
-      const lox = 5
-      const loy = -16
-      // Body
-      g.roundRect(lox + 3*ls, loy + 11*ls, 18*ls, 11*ls, 2*ls).fill(0xffffff)
-      // Shackle
-      g.moveTo(lox + 7*ls, loy + 11*ls)
-        .lineTo(lox + 7*ls, loy + 7*ls)
-        .bezierCurveTo(lox + 7*ls, loy + 4*ls, lox + 17*ls, loy + 4*ls, lox + 17*ls, loy + 7*ls)
-        .lineTo(lox + 17*ls, loy + 11*ls)
-        .stroke({ color: 0xffffff, width: 1.2 })
-    }
     if (selected) {
       g.circle(0, 0, 24).stroke({ color: 0xffffff, width: 2.5 })
       g.circle(0, 0, 26).stroke({ color: 0x4a7c59, width: 1.5 })
     }
-  }, [locked, selected])
-
-  const sproutDraw = useCallback((g: import('pixi.js').Graphics) => {
-    g.clear()
-    const s = 40 / 24
-    const ox = -20
-    const oy = -20
-
-    // Stem
-    g.moveTo(ox + 12*s, oy + 22*s)
-      .lineTo(ox + 12*s, oy + 12*s)
-      .stroke({ color: 0xffffff, width: 1.5 })
-
-    // Left leaf
-    g.moveTo(ox + 12*s, oy + 12*s)
-      .bezierCurveTo(ox + 9*s, oy + 9*s, ox + 3*s, oy + 9*s, ox + 2*s, oy + 12*s)
-      .bezierCurveTo(ox + 5*s, oy + 15*s, ox + 10*s, oy + 15*s, ox + 12*s, oy + 12*s)
-      .fill({ color: 0xffffff, alpha: 0.9 })
-
-    // Right leaf
-    g.moveTo(ox + 12*s, oy + 12*s)
-      .bezierCurveTo(ox + 15*s, oy + 9*s, ox + 21*s, oy + 9*s, ox + 22*s, oy + 12*s)
-      .bezierCurveTo(ox + 19*s, oy + 15*s, ox + 14*s, oy + 15*s, ox + 12*s, oy + 12*s)
-      .fill({ color: 0xffffff, alpha: 0.9 })
-  }, [])
+  }, [selected])
 
   // Label background pill
   const pillDraw = useCallback((g: import('pixi.js').Graphics) => {
@@ -489,10 +497,29 @@ function PlantMarker({
         </>
       ) : (
         /* Fallback: sprout icon */
-        <pixiGraphics draw={sproutDraw} />
+        sproutTexture && (
+          <pixiSprite
+            texture={sproutTexture}
+            width={24}
+            height={24}
+            x={-12}
+            y={-12}
+            alpha={0.9}
+          />
+        )
       )}
       {/* 3. Border on top always */}
       <pixiGraphics draw={borderDraw} />
+      {/* Lock icon (top-right of circle) */}
+      {locked && lockTexture && (
+        <pixiSprite
+          texture={lockTexture}
+          width={14}
+          height={14}
+          x={8}
+          y={-22}
+        />
+      )}
       {/* 4. Label with pill background */}
       <pixiContainer y={RADIUS + 8}>
         <pixiGraphics draw={pillDraw} />
